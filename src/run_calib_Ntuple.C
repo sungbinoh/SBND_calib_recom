@@ -112,7 +112,8 @@ void run_calib_Ntuple() {
     }
   }
 
-  TFile *out_rootfile = new TFile("./output.root", "RECREATE");
+  TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
+  TFile *out_rootfile = new TFile(output_rootfile_dir + "/output.root", "RECREATE");
   out_rootfile -> cd();
   
   hist_selected -> Write();

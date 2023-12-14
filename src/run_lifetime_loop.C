@@ -98,7 +98,8 @@ void run_lifetime_loop() {
     }
   }
 
-  TFile *out_rootfile = new TFile("./output_lifetime.root", "RECREATE");
+  TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
+  TFile *out_rootfile = new TFile(output_rootfile_dir + "/output_lifetime.root", "RECREATE");
   out_rootfile -> cd();
   
   hist_selected -> Write();

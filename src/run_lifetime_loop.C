@@ -9,12 +9,6 @@
 void run_lifetime_loop() {
 
   /////////////////////////////////
-  // == Constants
-  /////////////////////////////////
-  double v_drift = 156.267; // -- [cm/ms]
-
-
-  /////////////////////////////////
   // == Define histograms
   /////////////////////////////////
   // == Histograms for overal events
@@ -27,7 +21,9 @@ void run_lifetime_loop() {
   // == Histograms for cathod-anode passing muons
   TH2F *hist_time_vs_dqdx = new TH2F("time_dqdx","time_dqdx", 4000., 0., 4000., 3000., 0., 3000.);
   TH2F *hist_sp_x_vs_dqdx = new TH2F("sp_x_dqdx","sp_x_dqdx", 500., -250., 250., 3000., 0., 3000.);
+  TH2F *hist_sp_x_vs_corr_dqdx = new TH2F("sp_x_corr_dqdx","sp_x_corr_dqdx", 500., -250., 250., 3000., 0., 3000.);
   TH2F *hist_tdrift_vs_dqdx = new TH2F("tdrift_vs_dqdx", "tdrift_vs_dqdx", 150., 0., 1.5, 3000., 0., 3000.);
+  TH2F *hist_tdrift_vs_corr_dqdx = new TH2F("tdrift_vs_corr_dqdx", "tdrift_vs_corr_dqdx", 150., 0., 1.5, 3000., 0., 3000.);
 
 
   /////////////////////////////////
@@ -71,12 +67,12 @@ void run_lifetime_loop() {
   cout << "N_entries : " << N_entries << endl;
   int current_entry = 0;
 
-  int N_run = 3000;
+  int N_run = 100;
   double ADC_med_cut = 1600.; // == https://sbn-docdb.fnal.gov/cgi-bin/sso/RetrieveFile?docid=23472&filename=SBND%20Calib%20Workshop%202021.pdf&version=1
   double track_length_cut = 15.;
   // Loop over all entries of the TTree
   while (myReader.Next()) {
-    if(current_entry > N_run) break;
+    //if(current_entry > N_run) break;
    
     if(current_entry%100 == 0){
       cout << current_entry << " / " << N_entries << endl;
@@ -87,6 +83,7 @@ void run_lifetime_loop() {
 
     // == Tracks selected as Anode+Cathode crossing
     if (*selected == 1) {
+      if(rr[rr.GetSize() - 1] < track_length_cut) continue; // remove tracks shorter than 15 cm
       //cout << "[(*selected == 1)] dqdx.GetSize() : " << dqdx.GetSize() << ", true_hit_time.GetSize() : " << true_hit_time.GetSize() << endl;
       for (unsigned i = 0; i < dqdx.GetSize(); i++) {
 	//cout << i << ", time : " << time[i] << ", sp_x : " << sp_x[i] << endl;
@@ -94,6 +91,12 @@ void run_lifetime_loop() {
 	hist_sp_x_vs_dqdx -> Fill(sp_x[i], dqdx[i]);
 	hist_time_vs_dqdx -> Fill(time[i], dqdx[i]);
 	hist_tdrift_vs_dqdx -> Fill(this_drift_time, dqdx[i]);
+
+	double this_lifetime_corr = Lifetime_Correction(sp_x[i], 12.28);
+	double corrected_dqdx = dqdx[i] * this_lifetime_corr;
+	//cout << i << ", x : " << sp_x[i] << ", this_lifetime_corr : " << this_lifetime_corr << ", dqdx[i] : " << dqdx[i] << ", corrected_dqdx : " << corrected_dqdx << endl;
+	hist_sp_x_vs_corr_dqdx -> Fill(sp_x[i], corrected_dqdx);
+	hist_tdrift_vs_corr_dqdx -> Fill(this_drift_time, corrected_dqdx);
       }
     }
   }
@@ -108,6 +111,7 @@ void run_lifetime_loop() {
   hist_sp_x_vs_dqdx -> Write();
   hist_time_vs_dqdx -> Write();
   hist_tdrift_vs_dqdx -> Write();
+  hist_tdrift_vs_corr_dqdx -> Write();
 
   out_rootfile -> Close();
 }

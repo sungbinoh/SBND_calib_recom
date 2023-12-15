@@ -30,6 +30,7 @@ map<TString, std::vector<TString> > map_sample_names;
 map<TString, std::vector<double> > map_syst_array;
 map<TString, std::vector<double> > map_syst_table;
 
+double v_drift = 156.267;
 double mass_muon = 105.658; // [MeV]
 double mass_pion = 139.57; // [MeV]
 double mass_proton = 938.272; // [MeV]
@@ -72,7 +73,17 @@ void AddFilesToChain(TString fileListPath, TChain* chain) {
   }
 }
 
+// == Lifetime Correction
+double Lifetime_Correction(double x, double tau){
+  
+  double out = 1.;
+  if(fabs(x) > 200.) return out;
 
+  double this_tdrift = (200. - fabs(x)) / v_drift;
+  out = 1. / exp(-1. * this_tdrift / tau);
+
+  return out;
+}
 
 // == HL parameters
 double HL_kappa_a = 0.022;

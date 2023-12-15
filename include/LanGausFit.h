@@ -34,6 +34,14 @@ Double_t langaufun(Double_t *x, Double_t *par) {
   return (par[2] * step * sum * invsq2pi / par[3]);
 }
 
+double bkgfun(double *x, double *par) {
+  return par[0] + par[1]*x[0];
+}
+
+double langaubkgfun(double *x, double *par){
+  return langaufun(x,par) + bkgfun(x, &par[4]);
+}
+
 TF1 *langaufit(TH1D *his, Double_t *fitrange, Double_t *startvalues, Double_t *parlimitslo, Double_t *parlimitshi, Double_t *fitparams, Double_t *fiterrors, Double_t *ChiSqr, Int_t *NDF, Int_t *Status, TString FunName){
 
   Int_t i;
@@ -59,6 +67,33 @@ TF1 *langaufit(TH1D *his, Double_t *fitrange, Double_t *startvalues, Double_t *p
   Status[0] = fitres->CovMatrixStatus();
 
   return (ffit);              // return fit function
+}
+
+TF1 *langaubkgfit(TH1D *his, Double_t *fitrange, Double_t *startvalues, Double_t *parlimitslo, Double_t *parlimitshi, Double_t *fitparams, Double_t *fiterrors, Double_t *ChiSqr, Int_t *NDF, Int_t *Status, TString FunName){
+
+  Int_t i;
+  TF1 *ffitold = (TF1*)gROOT->GetListOfFunctions()->FindObject(FunName);
+  if (ffitold) delete ffitold;
+
+  TF1 *ffit = new TF1(FunName,langaubkgfun,fitrange[0],fitrange[1],6);
+  ffit->SetParameters(startvalues);
+  ffit->SetParNames("Width","MPV","Area","GSigma", "p0", "p1", "p2");
+
+  for (i=0; i<4; i++) {
+    ffit->SetParLimits(i, parlimitslo[i], parlimitshi[i]);
+  }
+
+  TFitResultPtr fitres = his->Fit(FunName,"RBOSQN");
+  ffit->GetParameters(fitparams);
+  for (i=0; i<6; i++) {
+    fiterrors[i] = ffit->GetParError(i);
+  }
+
+  ChiSqr[0] = ffit->GetChisquare();
+  NDF[0] = ffit->GetNDF();
+  Status[0] = fitres->CovMatrixStatus();
+
+  return (ffit);
 }
 
 #endif

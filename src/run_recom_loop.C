@@ -4,23 +4,39 @@
 #include "TH1F.h"
 #include "TTreeReader.h"
 #include "TTreeReaderValue.h"
+#include "mylib.h"
 
-void run_calib_Ntuple() {
 
+void Fill_track_plots(TString suffix, double dist_start, double dist_end){
+
+  FillHist("dist_start_" + suffix, dist_start, 1., 1000., 0., 1000.);
+  FillHist("dist_end_" + suffix, dist_end, 1., 1000., 0., 1000.);
+}
+
+void run_recom_loop() {
+
+  /////////////////////////////////
+  // == Define histograms
+  /////////////////////////////////
   // == Histograms for overal events
   TH1F *hist_selected = new TH1F("selected", "selected", 3., -0.5, 2.5);
 
   // == Histograms for stopping muons
-  TH2F *hist_dqdx_vs_rr = new TH2F("dqdx_rr","dqdx_rr", 300., 0., 300., 3000., 0., 3000.);
-  TH2F *hist_dqdx_vs_rr_ADC_med_cut = new TH2F("dqdx_rr_ADC_med_cut","dqdx_rr_ADC_med_cut", 300., 0., 300., 3000., 0., 3000.);
-  TH2F *hist_dqdx_vs_rr_track_len_cut = new TH2F("dqdx_rr_track_len_cut","dqdx_rr_track_len_cut", 300., 0., 300., 3000., 0., 3000.);
   TH1F *hist_true_end_process = new TH1F("true_end_process", "true_end_process", 65., -0.5, 64.5);
   TH1F *hist_true_end_process_track_len_cut = new TH1F("true_end_process_track_len_cut", "true_end_process_track_len_cut", 65., -0.5, 64.5);
 
   // == Histograms for cathod-anode passing muons
-  TH2F *hist_time_vs_dqdx = new TH2F("time_dqdx","time_dqdx", 300., 0., 300., 3000., 0., 3000.);
+  TH2F *hist_time_vs_dqdx = new TH2F("time_dqdx","time_dqdx", 4000., 0., 4000., 3000., 0., 3000.);
+  TH2F *hist_sp_x_vs_dqdx = new TH2F("sp_x_dqdx","sp_x_dqdx", 500., -250., 250., 3000., 0., 3000.);
+  TH2F *hist_sp_x_vs_corr_dqdx = new TH2F("sp_x_corr_dqdx","sp_x_corr_dqdx", 500., -250., 250., 3000., 0., 3000.);
+  TH2F *hist_tdrift_vs_dqdx = new TH2F("tdrift_vs_dqdx", "tdrift_vs_dqdx", 150., 0., 1.5, 3000., 0., 3000.);
+  TH2F *hist_tdrift_vs_corr_dqdx = new TH2F("tdrift_vs_corr_dqdx", "tdrift_vs_corr_dqdx", 150., 0., 1.5, 3000., 0., 3000.);
 
-  // Open the file containing the tree.
+
+  /////////////////////////////////
+  // == Call Trees
+  /////////////////////////////////
+  // Open the file containing the tree
   TChain *fChain = new TChain("caloskim/TrackCaloSkim");
   TString input_file_dir = getenv("DATA_PATH");
   TString fileListPath = input_file_dir + "/sample_list/list_MCP2023B_corsika_1Dsim_1Dreco.txt";
@@ -51,11 +67,14 @@ void run_calib_Ntuple() {
   TTreeReaderArray<float> true_hit_tdrift(myReader, "trk.truth.p.truehits2.tdrift");
   
 
+  /////////////////////////////////
+  // == Loop for tracks
+  /////////////////////////////////
   int N_entries = myReader.GetEntries();
   cout << "N_entries : " << N_entries << endl;
   int current_entry = 0;
 
-  int N_run = 100;
+  int N_run = 1000;
   double ADC_med_cut = 1600.; // == https://sbn-docdb.fnal.gov/cgi-bin/sso/RetrieveFile?docid=23472&filename=SBND%20Calib%20Workshop%202021.pdf&version=1
   double track_length_cut = 15.;
   // Loop over all entries of the TTree
@@ -71,59 +90,60 @@ void run_calib_Ntuple() {
 
     // == Tracks selected as stopping
     if (*selected == 0) {
-      // == With no cut
-      hist_true_end_process -> Fill(true_end_process[0]);
-      for (unsigned i = 0; i < dqdx.GetSize(); i++) {
-        hist_dqdx_vs_rr -> Fill(rr[i], dqdx[i]);
-      }
 
-      // == With ADC Median Cut
-      vector<double> vec_ADC_for_med;
-      for(unsigned i = 0; i < rr.GetSize(); i++) {
-        double this_rr = rr[i];
-        if(this_rr > 5.) break;
-        vec_ADC_for_med.push_back(dqdx[i]);
-      }
-      double ADC_med = TMath::Median(vec_ADC_for_med.size(), &vec_ADC_for_med[0]);
-      //if(ADC_med < ADC_med_cut) continue;
-      for (unsigned i = 0; i < dqdx.GetSize(); i++) {
-        hist_dqdx_vs_rr_ADC_med_cut -> Fill(rr[i], dqdx[i]);
-      }
+      unsigned N_reco_hits = rr.GetSize();
+      TVector3 this_reco_start(sp_x[N_reco_hits - 1], sp_y[N_reco_hits - 1], sp_z[N_reco_hits - 1]);
+      TVector3 this_reco_end(sp_x[0], sp_y[0], sp_z[0]);
+      TVector3 this_true_start(true_start_x[0], true_start_y[0], true_start_z[0]);
+      TVector3 this_true_end(true_end_x[0], true_end_y[0], true_end_z[0]);
 
-      // == With Track Length cut
-      if(rr[rr.GetSize() - 1] < track_length_cut) continue; // remove tracks shorter than 15 cm
-      hist_true_end_process_track_len_cut -> Fill(true_end_process[0]);
-      for (unsigned i = 0; i < dqdx.GetSize(); i++) {
-	hist_dqdx_vs_rr_track_len_cut -> Fill(rr[i], dqdx[i]);
-      }
-    }
+      double dist_start = (this_reco_start - this_true_start).Mag();
+      double dist_end = (this_reco_end - this_true_end).Mag();
 
-    // == Tracks selected as Anode+Cathode crossing
-    if (*selected == 1) {
-      //continue;
-      cout << "[(*selected == 1)] dqdx.GetSize() : " << dqdx.GetSize() << ", true_hit_time.GetSize() : " << true_hit_time.GetSize() << endl;
-      for (unsigned i = 0; i < true_hit_time.GetSize(); i++) {
-        cout << i << ", true_hit_time : " << true_hit_time[i] << ", true_hit_tdrift : " << true_hit_tdrift[i] << endl;
-      }
-      for (unsigned i = 0; i < dqdx.GetSize(); i++) {
-	cout << i << ", time : " << time[i] << ", sp_x : " << sp_x[i] << endl;
-	hist_time_vs_dqdx -> Fill(time[i], dqdx[i]);
-      }
+      double this_reco_trk_len = rr[N_reco_hits - 1];
+
+      // == Nocut
+      FillHist("dist_start_vs_reco_trk_len_nocut", dist_start, this_reco_trk_len, 1., 1000., 0., 1000., 1000., 0., 1000.);
+      FillHist("dist_end_vs_reco_trk_len_nocut", dist_end, this_reco_trk_len, 1., 1000., 0., 1000., 1000., 0., 1000.);
+      Fill_track_plots("nocut", dist_start, dist_end);
+
+
+      // == Track length 5 cm cut
+      if(this_reco_trk_len < 5.) continue;
+      Fill_track_plots("trklen_05cm", dist_start, dist_end);
+
+      // == Track length 10 cm cut
+      if(this_reco_trk_len < 10.) continue;
+      Fill_track_plots("trklen10cm", dist_start, dist_end);
+
+      // == Track length 15 cm cut
+      if(this_reco_trk_len < 15.) continue;
+      Fill_track_plots("trklen_15cm", dist_start, dist_end);
+
+      // == Track length 20 cm cut
+      if(this_reco_trk_len < 20.) continue;
+      Fill_track_plots("trklen_20cm", dist_start, dist_end);
+
+      // == Track length 30 cm cut
+      if(this_reco_trk_len < 30.) continue;
+      Fill_track_plots("trklen_30cm", dist_start, dist_end);
+      
     }
   }
 
   TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
-  out_rootfile = new TFile(output_rootfile_dir + "/output.root", "RECREATE");
+  out_rootfile = new TFile(output_rootfile_dir + "/output_recom.root", "RECREATE");
   out_rootfile -> cd();
   
   hist_selected -> Write();
-
   hist_true_end_process -> Write();
-  hist_dqdx_vs_rr -> Write();
-  hist_dqdx_vs_rr_ADC_med_cut -> Write();
   hist_true_end_process_track_len_cut -> Write();
-  hist_dqdx_vs_rr_track_len_cut -> Write();
+  hist_sp_x_vs_dqdx -> Write();
   hist_time_vs_dqdx -> Write();
+  hist_tdrift_vs_dqdx -> Write();
+  hist_tdrift_vs_corr_dqdx -> Write();
+
+  WriteHist();
 
   out_rootfile -> Close();
 }

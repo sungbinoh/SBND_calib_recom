@@ -32,7 +32,7 @@ void Fill_hit_plots(TString suffix, const TTreeReaderArray<float>& rr, const TTr
 void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr, const TTreeReaderArray<float>& dqdx, const TTreeReaderArray<float>& sp_x, const TTreeReaderArray<float>& pitch){
 
   for (unsigned i = 0; i < dqdx.GetSize(); i++) {
-    double this_lifetime_corr = Lifetime_Correction(sp_x[i], 12.28);
+    double this_lifetime_corr = Lifetime_Correction(sp_x[i], 10.0);
     double corrected_dqdx = dqdx[i] * this_lifetime_corr;
     FillHist("rr_vs_corr_dqdx_" + suffix, rr[i], corrected_dqdx, 1., 300., 0., 300., 3000., 0., 3000.);
     FillHist("rr_vs_pitch_" + suffix, rr[i], pitch[i], 1., 300., 0., 300., 200., 0., 2.);
@@ -79,7 +79,8 @@ void run_recom_loop() {
   // Open the file containing the tree
   TChain *fChain = new TChain("caloskim/TrackCaloSkim");
   TString input_file_dir = getenv("DATA_PATH");
-  TString fileListPath = input_file_dir + "/sample_list/list_MCP2023B_corsika_1Dsim_1Dreco.txt";
+  //TString fileListPath = input_file_dir + "/sample_list/list_MCP2023B_corsika_1Dsim_1Dreco.txt";
+  TString fileListPath = input_file_dir + "/sample_list/list_2023B_GENIE_CV.txt";
   AddFilesToChain(fileListPath, fChain);
 
   TTreeReader myReader(fChain);
@@ -213,7 +214,7 @@ void run_recom_loop() {
   }
 
   TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
-  out_rootfile = new TFile(output_rootfile_dir + "/output_recom.root", "RECREATE");
+  out_rootfile = new TFile(output_rootfile_dir + "/output_recom_2023B_GENIE_CV.root", "RECREATE");
   out_rootfile -> cd();
   
   hist_selected -> Write();

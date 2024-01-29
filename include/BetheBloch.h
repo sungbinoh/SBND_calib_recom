@@ -159,7 +159,7 @@ double dEdx_PDF_setting(double *x, double *par){
 
 TF1 *dEdx_PDF(double *par){
 
-  TF1 *out = new TF1("", dEdx_PDF_setting, 0., 1000., 5);
+  TF1 *out = new TF1("", dEdx_PDF_setting, 0., 20., 5); // == FIXME
   out -> SetParameter(0, par[0]);
   out -> SetParameter(1, par[1]);
   out -> SetParameter(2, par[2]);

@@ -6,13 +6,11 @@
 TRandom3 gRan(1800);
 map<TString, vector<double>> fitting_results;
 
-void Fit_1D_plots(TString input_file_name, int rebin_x, int rebin_y, double tdrift_low, double tdrift_high){
-
-  TString this_id = "id";
+void Fit_1D_plots(TString input_file_name, int rebin_x, int rebin_y, double tdrift_low, double tdrift_high, TString this_id, TString suffix, bool fit_bkg = false){
 
   TString input_file_dir = getenv("OUTPUTROOT_PATH");
   TFile *f = new TFile(input_file_dir + "/" + input_file_name);
-  TH2D *hist_2D = (TH2D*)gDirectory -> Get("tdrift_vs_dqdx");
+  TH2D *hist_2D = (TH2D*)gDirectory -> Get("t_drift_" + this_id + "_vs_dqdx_" + suffix);
   //TH2D *hist_2D = (TH2D*)gDirectory -> Get("tdrift_vs_corr_dqdx");
 
   hist_2D -> RebinX(rebin_x);
@@ -67,14 +65,17 @@ void Fit_1D_plots(TString input_file_name, int rebin_x, int rebin_y, double tdri
 
     TH1D *this_hist_1D_clone = (TH1D*)this_hist_1D -> Clone();
 
+    TLegend *l = new TLegend(0.50, 0.40, 0.92, 0.85);
+
     double max_x = this_hist_1D -> GetBinCenter(this_hist_1D -> GetMaximumBin());
+    double width_x = this_hist_1D -> GetBinWidth(1);
     Double_t fitting_range[2];
-    fitting_range[0] = 550.;
-    fitting_range[1] = 2000.;
+    fitting_range[0] = 400.;
+    fitting_range[1] = 2500.;
     Double_t sv[6], pllo[4], plhi[4], fp[4], fpe[4];
     sv[0] = 30.;
     sv[1] = 1000.; //max_x;
-    sv[2] = this_hist_1D -> Integral() * 0.05;
+    sv[2] = this_hist_1D -> Integral() * 0.05 * width_x;
     sv[3] = 60.;
     sv[4] = 90.;
     sv[5] = -0.03;
@@ -87,52 +88,91 @@ void Fit_1D_plots(TString input_file_name, int rebin_x, int rebin_y, double tdri
     Int_t    ndf;
     Int_t    status;
 
-    //TF1 *this_Langau_fit = langaufit(this_hist_1D_clone, fitting_range, sv,pllo,plhi,fp,fpe,&chisqr,&ndf,&status, "Langau_this_Langau" + this_hist_name);
-    TF1 *this_Langau_fit = langaubkgfit(this_hist_1D_clone, fitting_range, sv,pllo,plhi,fp,fpe,&chisqr,&ndf,&status, "Langau_this_Langau" + this_hist_name);
+    double this_Landau_sigma = -1.;
+    double this_Landau_sigma_err = -1.;
+    double this_MPV = -1.;
+    double this_MPV_err = -1.;
+    double this_par2 = -1.;
+    double this_par2_err = -1.;
+    double this_Gaus_sigma = -1.;
+    double this_Gaus_sigma_err = -1.;
 
-    TF1 *this_Langaubkg =  new TF1("this_Langaubkg", langaubkgfun, fitting_range[0], fitting_range[1], 6);
-    this_Langaubkg -> SetParameters(this_Langau_fit -> GetParameters());
-    this_Langaubkg -> SetNpx(1000);
-    this_Langaubkg -> SetLineColor(kMagenta);
-    this_Langaubkg -> SetLineWidth(2);
-    this_Langaubkg -> Draw("lsame");
+    if(fit_bkg){
 
-    TF1 *this_bkg = new TF1("this_bkg", bkgfun, fitting_range[0], fitting_range[1], 2);
-    this_bkg -> SetParameters(this_Langau_fit -> GetParameter(4), this_Langau_fit -> GetParameter(5));
-    this_bkg -> SetNpx(1000);
-    this_bkg -> SetLineColor(kRed - 7);
-    this_bkg -> SetLineWidth(2);
-    this_bkg -> Draw("lsame");
+      TF1 *this_Langau_fit = langaubkgfit(this_hist_1D_clone, fitting_range, sv,pllo,plhi,fp,fpe,&chisqr,&ndf,&status, "Langau_this_Langau" + this_hist_name);
 
-    TF1 *this_Langau = new TF1("Langau_this_Langau", langaufun, fitting_range[0], fitting_range[1], 4);
-    this_Langau -> SetParameters(this_Langau_fit -> GetParameter(0), this_Langau_fit -> GetParameter(1), this_Langau_fit -> GetParameter(2), this_Langau_fit -> GetParameter(3));
-    this_Langau -> SetNpx(1000);
-    this_Langau -> SetLineColor(kBlue);
-    this_Langau -> SetLineWidth(2);
-    this_Langau -> Draw("lsame");
+      TF1 *this_Langaubkg =  new TF1("this_Langaubkg", langaubkgfun, fitting_range[0], fitting_range[1], 6);
+      this_Langaubkg -> SetParameters(this_Langau_fit -> GetParameters());
+      this_Langaubkg -> SetNpx(1000);
+      this_Langaubkg -> SetLineColor(kMagenta);
+      this_Langaubkg -> SetLineWidth(2);
+      this_Langaubkg -> Draw("lsame");
 
-    double this_Landau_sigma = this_Langau_fit ->GetParameter(0);
-    double this_Landau_sigma_err =this_Langau_fit -> GetParError(0);
-    double this_MPV = this_Langau_fit -> GetParameter(1);
-    double this_MPV_err = this_Langau_fit -> GetParError(1);
-    double this_par2 = this_Langau_fit -> GetParameter(2);
-    double this_par2_err =this_Langau_fit -> GetParError(2);
-    double this_Gaus_sigma= this_Langau_fit -> GetParameter(3);
-    double this_Gaus_sigma_err= this_Langau_fit -> GetParError(3);
+      TF1 *this_bkg = new TF1("this_bkg", bkgfun, fitting_range[0], fitting_range[1], 2);
+      this_bkg -> SetParameters(this_Langau_fit -> GetParameter(4), this_Langau_fit -> GetParameter(5));
+      this_bkg -> SetNpx(1000);
+      this_bkg -> SetLineColor(kRed - 7);
+      this_bkg -> SetLineWidth(2);
+      this_bkg -> Draw("lsame");
 
-    this_hist_1D -> Draw("epsame");
-    //this_Langau -> Draw("lsame");
+      TF1 *this_Langau = new TF1("Langau_this_Langau", langaufun, fitting_range[0], fitting_range[1], 4);
+      this_Langau -> SetParameters(this_Langau_fit -> GetParameter(0), this_Langau_fit -> GetParameter(1), this_Langau_fit -> GetParameter(2), this_Langau_fit -> GetParameter(3));
+      this_Langau -> SetNpx(1000);
+      this_Langau -> SetLineColor(kBlue);
+      this_Langau -> SetLineWidth(2);
+      this_Langau -> Draw("lsame");
 
-    TLegend *l = new TLegend(0.50, 0.40, 0.92, 0.85);
-    l -> AddEntry(this_hist_1D, "dQ/dx", "pl");
-    l -> AddEntry(this_Langau, Form("#sigma_{Landau} : %.2f #pm %.2f", this_Landau_sigma, this_Landau_sigma_err), "l");
-    l -> AddEntry(this_hist_1D, Form("MPV : %.2f #pm %.2f", this_MPV, this_MPV_err), "");
-    //l -> AddEntry(this_hist_1D, Form("Par2 : %.2f #pm %.2f", this_par2, this_par2_err), "");
-    l -> AddEntry(this_hist_1D, Form("#sigma_{Gaus} : %.2f #pm %.2f", this_Gaus_sigma, this_Gaus_sigma_err), "");
-    l -> AddEntry(this_hist_1D, Form("#chi^{2} / ndf : %.2f", chisqr / ndf), "");
-    l -> AddEntry(this_bkg, "Background", "l");
-    l -> AddEntry(this_Langaubkg, "Background + LanGau", "l");
+      this_Landau_sigma = this_Langau_fit ->GetParameter(0);
+      this_Landau_sigma_err =this_Langau_fit -> GetParError(0);
+      this_MPV = this_Langau_fit -> GetParameter(1);
+      this_MPV_err = this_Langau_fit -> GetParError(1);
+      this_par2 = this_Langau_fit -> GetParameter(2);
+      this_par2_err =this_Langau_fit -> GetParError(2);
+      this_Gaus_sigma= this_Langau_fit -> GetParameter(3);
+      this_Gaus_sigma_err= this_Langau_fit -> GetParError(3);
 
+      this_hist_1D -> Draw("epsame");
+      //this_Langau -> Draw("lsame");
+
+      l -> AddEntry(this_hist_1D, "dQ/dx", "pl");
+      l -> AddEntry(this_Langau, Form("#sigma_{Landau} : %.2f #pm %.2f", this_Landau_sigma, this_Landau_sigma_err), "l");
+      l -> AddEntry(this_hist_1D, Form("MPV : %.2f #pm %.2f", this_MPV, this_MPV_err), "");
+      l -> AddEntry(this_hist_1D, Form("#sigma_{Gaus} : %.2f #pm %.2f", this_Gaus_sigma, this_Gaus_sigma_err), "");
+      l -> AddEntry(this_hist_1D, Form("#chi^{2} / ndf : %.2f", chisqr / ndf), "");
+      l -> AddEntry(this_bkg, "Background", "l");
+      l -> AddEntry(this_Langaubkg, "Background + LanGau", "l");
+
+    }
+    else{
+      TF1 *this_Langau_fit = langaufit(this_hist_1D_clone, fitting_range, sv,pllo,plhi,fp,fpe,&chisqr,&ndf,&status, "Langau_this_Langau" + this_hist_name);
+    
+      TF1 *this_Langau =  new TF1("this_Langau", langaufun, fitting_range[0], fitting_range[1], 4);
+      this_Langau -> SetParameters(this_Langau_fit -> GetParameters());
+      this_Langau -> SetNpx(1000);
+      this_Langau -> SetLineColor(kMagenta);
+      this_Langau -> SetLineWidth(2);
+      this_Langau -> Draw("lsame");
+
+      this_Landau_sigma = this_Langau_fit ->GetParameter(0);
+      this_Landau_sigma_err =this_Langau_fit -> GetParError(0);
+      this_MPV = this_Langau_fit -> GetParameter(1);
+      this_MPV_err = this_Langau_fit -> GetParError(1);
+      this_par2 = this_Langau_fit -> GetParameter(2);
+      this_par2_err =this_Langau_fit -> GetParError(2);
+      this_Gaus_sigma= this_Langau_fit -> GetParameter(3);
+      this_Gaus_sigma_err= this_Langau_fit -> GetParError(3);
+
+      this_hist_1D -> Draw("epsame");
+      //this_Langau -> Draw("lsame");
+
+      l -> AddEntry(this_hist_1D, "dQ/dx", "pl");
+      l -> AddEntry(this_Langau, Form("#sigma_{Landau} : %.2f #pm %.2f", this_Landau_sigma, this_Landau_sigma_err), "l");
+      l -> AddEntry(this_hist_1D, Form("MPV : %.2f #pm %.2f", this_MPV, this_MPV_err), "");
+      //l -> AddEntry(this_hist_1D, Form("Par2 : %.2f #pm %.2f", this_par2, this_par2_err), "");
+      l -> AddEntry(this_hist_1D, Form("#sigma_{Gaus} : %.2f #pm %.2f", this_Gaus_sigma, this_Gaus_sigma_err), "");
+      l -> AddEntry(this_hist_1D, Form("#chi^{2} / ndf : %.2f", chisqr / ndf), "");
+    }
+    
     l -> Draw("same");
 
     TLatex latex_ProtoDUNE, latex_particle, latex_Nhits, latex_method;
@@ -150,7 +190,7 @@ void Fit_1D_plots(TString input_file_name, int rebin_x, int rebin_y, double tdri
     latex_method.DrawLatex(0.18, 0.87, tdrift_latex);
 
     TString output_plot_dir = getenv("PLOT_PATH");
-    output_plot_dir = output_plot_dir + "/lifetime/1D/";
+    output_plot_dir = output_plot_dir + "/lifetime/1D/" + this_id + "/" + suffix + "/";
     //output_plot_dir = output_plot_dir + "/lifetime/1D/Corr/";
     c -> SaveAs(output_plot_dir + this_hist_name + ".pdf");
 
@@ -167,10 +207,10 @@ void Fit_1D_plots(TString input_file_name, int rebin_x, int rebin_y, double tdri
   }
 }
 
-void Fit_lifetime(TString id, double x_range_down, double x_range_up, double y_range_down, double y_range_up){
+void Fit_lifetime(TString id, TString suffix, double x_range_down, double x_range_up, double y_range_down, double y_range_up){
 
-  double fit_x_low = 0.3;
-  double fit_x_high = 1.2;
+  double fit_x_low = 0.1;
+  double fit_x_high = 1.24;
 
   TCanvas *c = new TCanvas("", "", 800, 600);
   canvas_margin(c);
@@ -205,10 +245,11 @@ void Fit_lifetime(TString id, double x_range_down, double x_range_up, double y_r
   gr_fit -> SetLineStyle(7);
   gr_fit -> Draw("lsame");
 
-  TLegend *l = new TLegend(0.55, 0.65, 0.92, 0.92);
+  TLegend *l = new TLegend(0.45, 0.65, 0.92, 0.92);
   l -> AddEntry(gr_1, "MPV from Landau*Gaussian fit", "lp");
   l -> AddEntry(gr_fit, Form("dQ/dx at APA : %.2f #pm %.2f [ADC/cm]", gr_fit -> GetParameter(0), gr_fit -> GetParError(0)), "l");
-  l -> AddEntry(gr_fit, Form("Lifetime : %.2f #pm %.2f [ms]", gr_fit -> GetParameter(1), gr_fit -> GetParError(1)), "");
+  l -> AddEntry(gr_fit, Form("Lifetime : %.2f #pm %.3f [ms]", gr_fit -> GetParameter(1), gr_fit -> GetParError(1)), "");
+  l -> SetFillColor(0);
   l -> Draw("same");
 
   TLatex latex_ProtoDUNE, latex_particle;
@@ -222,7 +263,7 @@ void Fit_lifetime(TString id, double x_range_down, double x_range_up, double y_r
 
   TString output_plot_dir = getenv("PLOT_PATH");
   output_plot_dir = output_plot_dir + "/lifetime/";
-  c -> SaveAs(output_plot_dir + "life_time.pdf");
+  c -> SaveAs(output_plot_dir + "life_time_" + id + "_" + suffix + ".pdf");
   //c -> SaveAs(output_plot_dir + "life_time_corr.pdf");
 
   c -> Close();
@@ -231,6 +272,18 @@ void Fit_lifetime(TString id, double x_range_down, double x_range_up, double y_r
 void run_lifetime_fit(){
 
   setTDRStyle();
-  Fit_1D_plots("output_lifetime.root", 2, 10, 0.3, 1.2);
-  Fit_lifetime("id", 0.2, 1.3, 1010., 1100.);
+  Fit_1D_plots("output_lifetime_test.root", 2, 20, 0.1, 1.24, "space", "angle_passing_cathode");
+  Fit_1D_plots("output_lifetime_test.root", 2, 20, 0.1, 1.24, "time", "angle_passing_cathode");
+  //Fit_1D_plots("output_lifetime_test.root", 2, 20, 0.1, 1.24, "space", "trk_len", true);
+  //Fit_1D_plots("output_lifetime_test.root", 2, 20, 0.1, 1.24, "time", "trk_len", true);
+  //Fit_1D_plots("output_lifetime_test.root", 2, 20, 0.1, 1.24, "space", "corr_trk_len", true);
+  //Fit_1D_plots("output_lifetime_test.root", 2, 20, 0.1, 1.24, "time", "corr_trk_len", true);
+
+  Fit_lifetime("space", "angle_passing_cathode", 0., 1.3, 950., 1050.);
+  Fit_lifetime("time", "angle_passing_cathode", 0., 1.3, 950., 1050.);
+  //Fit_lifetime("space", "trk_len", 0., 1.3, 950., 1080.);
+  //Fit_lifetime("time", "trk_len", 0., 1.3, 950., 1080.);
+  //Fit_lifetime("space", "corr_trk_len", 0., 1.3, 1010., 1100.);
+  //Fit_lifetime("time", "corr_trk_len", 0., 1.3, 1010., 1100.);
+
 }

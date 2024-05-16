@@ -4,21 +4,12 @@
 #include "TH1F.h"
 #include "TTreeReader.h"
 #include "TTreeReaderValue.h"
+#include "mylib.h"
 
 void run_calib_Ntuple() {
 
   // == Histograms for overal events
   TH1F *hist_selected = new TH1F("selected", "selected", 3., -0.5, 2.5);
-
-  // == Histograms for stopping muons
-  TH2F *hist_dqdx_vs_rr = new TH2F("dqdx_rr","dqdx_rr", 300., 0., 300., 3000., 0., 3000.);
-  TH2F *hist_dqdx_vs_rr_ADC_med_cut = new TH2F("dqdx_rr_ADC_med_cut","dqdx_rr_ADC_med_cut", 300., 0., 300., 3000., 0., 3000.);
-  TH2F *hist_dqdx_vs_rr_track_len_cut = new TH2F("dqdx_rr_track_len_cut","dqdx_rr_track_len_cut", 300., 0., 300., 3000., 0., 3000.);
-  TH1F *hist_true_end_process = new TH1F("true_end_process", "true_end_process", 65., -0.5, 64.5);
-  TH1F *hist_true_end_process_track_len_cut = new TH1F("true_end_process_track_len_cut", "true_end_process_track_len_cut", 65., -0.5, 64.5);
-
-  // == Histograms for cathod-anode passing muons
-  TH2F *hist_time_vs_dqdx = new TH2F("time_dqdx","time_dqdx", 300., 0., 300., 3000., 0., 3000.);
 
   // Open the file containing the tree.
   TChain *fChain = new TChain("caloskim/TrackCaloSkim");
@@ -60,7 +51,7 @@ void run_calib_Ntuple() {
   double track_length_cut = 15.;
   // Loop over all entries of the TTree
   while (myReader.Next()) {
-    if(current_entry > N_run) break;
+    //if(current_entry > N_run) break;
    
     if(current_entry%100 == 0){
       cout << current_entry << " / " << N_entries << endl;
@@ -68,62 +59,51 @@ void run_calib_Ntuple() {
     current_entry++;
 
     hist_selected -> Fill(*selected);
-
-    // == Tracks selected as stopping
-    if (*selected == 0) {
-      // == With no cut
-      hist_true_end_process -> Fill(true_end_process[0]);
-      for (unsigned i = 0; i < dqdx.GetSize(); i++) {
-        hist_dqdx_vs_rr -> Fill(rr[i], dqdx[i]);
-      }
-
-      // == With ADC Median Cut
-      vector<double> vec_ADC_for_med;
-      for(unsigned i = 0; i < rr.GetSize(); i++) {
-        double this_rr = rr[i];
-        if(this_rr > 5.) break;
-        vec_ADC_for_med.push_back(dqdx[i]);
-      }
-      double ADC_med = TMath::Median(vec_ADC_for_med.size(), &vec_ADC_for_med[0]);
-      //if(ADC_med < ADC_med_cut) continue;
-      for (unsigned i = 0; i < dqdx.GetSize(); i++) {
-        hist_dqdx_vs_rr_ADC_med_cut -> Fill(rr[i], dqdx[i]);
-      }
-
-      // == With Track Length cut
-      if(rr[rr.GetSize() - 1] < track_length_cut) continue; // remove tracks shorter than 15 cm
-      hist_true_end_process_track_len_cut -> Fill(true_end_process[0]);
-      for (unsigned i = 0; i < dqdx.GetSize(); i++) {
-	hist_dqdx_vs_rr_track_len_cut -> Fill(rr[i], dqdx[i]);
-      }
-    }
-
+    //cout << "selected : " << *selected << endl;
     // == Tracks selected as Anode+Cathode crossing
-    if (*selected == 1) {
-      //continue;
-      cout << "[(*selected == 1)] dqdx.GetSize() : " << dqdx.GetSize() << ", true_hit_time.GetSize() : " << true_hit_time.GetSize() << endl;
-      for (unsigned i = 0; i < true_hit_time.GetSize(); i++) {
-        cout << i << ", true_hit_time : " << true_hit_time[i] << ", true_hit_tdrift : " << true_hit_tdrift[i] << endl;
-      }
+    if (*selected == 2) {
+      unsigned N_reco_hits = rr.GetSize();
+      if(N_reco_hits < 1) continue;
+      double this_reco_trk_len = rr[N_reco_hits - 1];
+      if(rr[rr.GetSize() - 1] < track_length_cut) continue;
+
+      double first_x = -999.;
+      double first_y = -999.;
+      double first_z = -999.;
+      double last_x = -999.;
+      double last_y = -999.;
+      double last_z = -999.;
+
+      first_x = sp_x[N_reco_hits - 1];
+      first_y = sp_y[N_reco_hits - 1];
+      first_z = sp_z[N_reco_hits - 1];
+
       for (unsigned i = 0; i < dqdx.GetSize(); i++) {
-	cout << i << ", time : " << time[i] << ", sp_x : " << sp_x[i] << endl;
-	hist_time_vs_dqdx -> Fill(time[i], dqdx[i]);
+        if(rr[i] > 0){
+          last_x = sp_x[i];
+          last_y = sp_y[i];
+          last_z = sp_z[i];
+          break;
+        }
       }
+
+      //cout << "first_x : " << first_x << ", last_x : " << last_x << endl;
+
+      FillHist("x_vs_y_throu", first_x, first_y, 1., 500., -250., 250., 5000., -250., 250.);
+      FillHist("x_vs_y_throu", last_x, last_y, 1., 500., -250., 250., 5000., -250., 250.);
+      
+      FillHist("x_vs_z_throu", first_x, first_z, 1., 500., -250., 250., 600., -50., 550.);
+      FillHist("x_vs_z_throu", last_x, last_z, 1., 500., -250., 250., 600., -50., 550.);
+
     }
   }
 
   TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
-  out_rootfile = new TFile(output_rootfile_dir + "/output.root", "RECREATE");
+  out_rootfile = new TFile(output_rootfile_dir + "/output_test.root", "RECREATE");
   out_rootfile -> cd();
   
   hist_selected -> Write();
 
-  hist_true_end_process -> Write();
-  hist_dqdx_vs_rr -> Write();
-  hist_dqdx_vs_rr_ADC_med_cut -> Write();
-  hist_true_end_process_track_len_cut -> Write();
-  hist_dqdx_vs_rr_track_len_cut -> Write();
-  hist_time_vs_dqdx -> Write();
-
+  WriteHist();
   out_rootfile -> Close();
 }

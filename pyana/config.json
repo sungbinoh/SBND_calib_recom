@@ -1,0 +1,7 @@
+{
+    "ncpu": 30,
+    "filelist": "files_genie_cv.list",
+    "which_dfs": ["nu", "nuprim", "slc", "pfp", "hit"],
+    "savepath": "/exp/sbnd/data/users/munjung/calibration/dfs/2024_prod_test",
+    "savename": "genie_cv.pkl"
+}

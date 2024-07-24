@@ -32,12 +32,15 @@ void run_lifetime_loop() {
   // Open the file containing the tree
   TChain *fChain = new TChain("caloskim/TrackCaloSkim");
   TString input_file_dir = getenv("DATA_PATH");
-  TString fileListPath = input_file_dir + "/sample_list/list_MCP2023B_corsika_1Dsim_1Dreco.txt";
+  TString fileListPath = input_file_dir + "/sample_list/list_run_14480_local.txt";
   AddFilesToChain(fileListPath, fChain);
 
   TTreeReader myReader(fChain);
 
   // == Variables
+  TTreeReaderValue<int> run(myReader, "trk.meta.run");
+  TTreeReaderValue<int> evt(myReader, "trk.meta.evt");
+
   TTreeReaderValue<int> selected(myReader, "trk.selected");
   TTreeReaderArray<float> dqdx(myReader, "trk.hits2.dqdx"); // hits on plane 2 (Collection)
   TTreeReaderArray<float> rr(myReader, "trk.hits2.rr");
@@ -78,6 +81,10 @@ void run_lifetime_loop() {
       cout << current_entry << " / " << N_entries << endl;
     }
     current_entry++;
+
+    if(*run == 14480){
+      if(*evt >= 749) continue;
+    }
 
     hist_selected -> Fill(*selected);
 
@@ -175,7 +182,7 @@ void run_lifetime_loop() {
   }
 
   TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
-  out_rootfile = new TFile(output_rootfile_dir + "/output_lifetime.root", "RECREATE");
+  out_rootfile = new TFile(output_rootfile_dir + "/output_lifetime_14480.root", "RECREATE");
   out_rootfile -> cd();
   
   hist_selected -> Write();

@@ -88,7 +88,7 @@ void Write_1D_hist(TH1D *in, TString outname, TString particle, TString latex_st
 
     in -> Draw("epsame");
 
-    TLegend *l = new TLegend(0.20, 0.40, 0.40, 0.80);
+    TLegend *l = new TLegend(0.60, 0.40, 0.80, 0.80);
     l -> AddEntry(in, Form("dQ/dx (%.0f)", in -> Integral()), "pl");
     l -> AddEntry(this_Langau, Form("#sigma_{Landau} : %.2f #pm %.2f", this_Landau_sigma, this_Landau_sigma_err), "l");
     l -> AddEntry(in, Form("MPV : %.2f #pm %.2f", this_MPV, this_MPV_err), "");
@@ -353,7 +353,7 @@ void Fit_rr_vs_dqdx_plots(TString input_file_name, int rebin_x, int rebin_y, dou
     l_mean -> SetLineColor(kRed);
     l_mean -> Draw("lsame");
     */
-    TLegend *l = new TLegend(0.20, 0.40, 0.40, 0.80);
+    TLegend *l = new TLegend(0.60, 0.40, 0.80, 0.80);
     l -> AddEntry(this_hist_1D, Form("dQ/dx (%.0f)", this_hist_1D -> Integral()), "pl");
     l -> AddEntry(this_Langau, Form("#sigma_{Landau} : %.2f #pm %.2f", this_Landau_sigma, this_Landau_sigma_err), "l");
     l -> AddEntry(this_hist_1D, Form("MPV : %.2f #pm %.2f", this_MPV, this_MPV_err), "");
@@ -435,8 +435,8 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString histname, TStri
     //cout << "this_dEdx_MPV_low : " << this_dEdx_MPV_low << ", this_dEdx_MPV_high : " << this_dEdx_MPV_high << ", x_index_low : " << x_index_low << ", x_index_high : " << x_index_high << endl;
     //cout << << endl;
 
-    TString dEdx_str  = Form("dEdx_MPV_%.1fto%.1f_MeVcm", this_dEdx_MPV_low, this_dEdx_MPV_high);
-    TString dEdx_latex_str = Form("dE/dx MPV %.1f to %.1f MeV/cm", this_dEdx_MPV_low, this_dEdx_MPV_high); 
+    TString dEdx_str  = Form("dEdx_MPV_%.2fto%.2f_MeVcm", this_dEdx_MPV_low, this_dEdx_MPV_high);
+    TString dEdx_latex_str = Form("dE/dx MPV %.2f to %.2f MeV/cm", this_dEdx_MPV_low, this_dEdx_MPV_high); 
     TString this_1D_X_hist_name = "dEdx_MPV_" + dEdx_str;
     TString this_1D_Y_hist_name = "dQdx_" + dEdx_str;
 
@@ -504,28 +504,29 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString histname, TStri
     cout << i << ", MPV_vec_map[particle] : " << MPV_vec_map[particle].at(i) << ", dEdx_vec : " << dEdx_vec_map[particle].at(i) << endl;
   }
 
-  double fit_x_max = 4.5;
+  double fit_x_max = 2.0;
   if(particle == "proton") fit_x_max = 9.0;  
   TF1 * f_mod_box = new TF1("f_mod_box", "(294.49153 * [0] / [1]) * log(1.4388489 * [1] * x + [2])", 1.6, fit_x_max);
   f_mod_box -> SetParameters(2.00, 0.212, 0.93);
-  f_mod_box -> FixParameter(0, 2.00);
+  f_mod_box -> FixParameter(1, 0.212);
+  f_mod_box -> FixParameter(2, 0.93);
   f_mod_box -> SetLineColor(kBlack);
   f_mod_box -> SetLineWidth(3);
   f_mod_box -> SetLineStyle(7);
   this_gr -> Fit("f_mod_box", "RNS");
   f_mod_box -> Draw("lsame");
 
-  TLegend *l = new TLegend(0.5, 0.25, 0.85, 0.50);
+  TLegend *l = new TLegend(0.5, 0.60, 0.85, 0.85);
   l -> AddEntry(this_gr, "Data points", "lp");
   l -> AddEntry(f_mod_box, "Fitting result", "l");
-  l -> AddEntry(f_mod_box, Form("C_{cal.} = %.2f  #pm %.3f #times 10^{-2} [ADC/electrons]", f_mod_box -> GetParameter(0), f_mod_box -> GetParError(0)), "");
+  l -> AddEntry(f_mod_box, Form("C_{cal.} = %.2f #pm %.3f #times 10^{-2} [ADC/electrons]", f_mod_box -> GetParameter(0), f_mod_box -> GetParError(0)), "");
   l -> AddEntry(f_mod_box, Form("#beta' = %.3f #pm %.3f [(kV/cm)(g/cm^{2})/MeV]", f_mod_box -> GetParameter(1), f_mod_box -> GetParError(1)), "");
   l -> AddEntry(f_mod_box, Form("#alpha = %.2f #pm %.3f",f_mod_box -> GetParameter(2), f_mod_box -> GetParError(2)), "");
   l -> Draw("same");
 
   TString output_plot_dir = getenv("PLOT_PATH");
   output_plot_dir = output_plot_dir + "/" + run_str + "/" + "/recom_fit/2D/";
-  c -> SaveAs(output_plot_dir + "dEdx_MPV_vs_corr_dqdx_" + particle + ".pdf");
+  c -> SaveAs(output_plot_dir + "dEdx_MPV_vs_corr_dqdx_" + particle + "_Run14480.pdf");
   
   c -> Close();
 
@@ -591,18 +592,18 @@ void fit_modified_box(TString id, double x_min, double x_max, double y_min, doub
 
 
 
-void run_recom_fit(){
+void run_calib_const_fit(){
 
   setTDRStyle();
   //Fit_rr_vs_pitch_plots("output_recom.root", 2, 4, 2., 80.);
   //Fit_rr_vs_dqdx_plots("output_recom.root", 2, 20, 2., 80.);
   double dEdx_MPV_binning_muon[] = {0.,
-				    1.6, 1.7, 1.8, 1.9, 2.0, 2.1,
-				    2.2, 2.3, 2.4, 2.5, 2.7, 3.0,
-				    3.5, 4.5, 30.};
-  int rebin_dqdx_muon[] = {1, 1, 2, 2, 2,
-			   4, 4, 4, 4, 4,
-			   4, 4, 4};
+				    1.60, 1.62, 1.64, 1.66, 1.68,
+				    1.70, 1.8, 
+				    };
+  int rebin_dqdx_muon[] = {2, 2, 2, 2, 2,
+			   2,
+  };
 
 
   double dEdx_MPV_binning_proton[] = {0.,
@@ -617,8 +618,8 @@ void run_recom_fit(){
 			     4, 4, 4, 4, 4,
 			     4, 4, 4, 4, 4};
 
-  Fit_dEdx_MPV_vs_dqdx_plots("output_recom_run14480.root", "dEdx_MPV_vs_corr_dqdx_trklen_60cm_passing_cathode_coszx", "muon", 5, 1.5, 4.7, dEdx_MPV_binning_muon, 15, rebin_dqdx_muon);
+  Fit_dEdx_MPV_vs_dqdx_plots("output_recom_run14480.root", "dEdx_MPV_vs_corr_dqdx_trklen_60cm_passing_cathode_coszx", "muon", 5, 1.5, 2.0, dEdx_MPV_binning_muon, 8, rebin_dqdx_muon);
   //Fit_dEdx_MPV_vs_dqdx_plots("output_recom_muscore40.root", "dEdx_MPV_vs_corr_dqdx_proton", "proton", 5, 1.5, 10.0, dEdx_MPV_binning_proton, 20, rebin_dqdx_proton);
 
-  fit_modified_box("", 1.5, 10.0, 0., 5000.);
+  //fit_modified_box("", 1.5, 10.0, 0., 5000.);
 }

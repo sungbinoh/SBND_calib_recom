@@ -8,7 +8,6 @@
 #include "Math/Vector3D.h"
 #include "BetheBloch.h"
 
-
 TSpline3 * muon_sp_range_to_KE = Get_sp_range_KE(mass_muon);
 
 void Fill_track_plots(TString suffix, double dist_start, double dist_end, const TTreeReaderArray<float>& rr, const TTreeReaderArray<float>& dqdx){
@@ -80,12 +79,15 @@ void run_recom_loop() {
   TChain *fChain = new TChain("caloskim/TrackCaloSkim");
   TString input_file_dir = getenv("DATA_PATH");
   //TString fileListPath = input_file_dir + "/sample_list/list_MCP2023B_corsika_1Dsim_1Dreco.txt";
-  TString fileListPath = input_file_dir + "/sample_list/list_2023B_GENIE_CV.txt";
+  TString fileListPath = input_file_dir + "/sample_list/list_run_14480_local.txt";
   AddFilesToChain(fileListPath, fChain);
 
   TTreeReader myReader(fChain);
 
   // == Variables
+  TTreeReaderValue<int> run(myReader, "trk.meta.run");
+  TTreeReaderValue<int> evt(myReader, "trk.meta.evt");
+
   TTreeReaderValue<int> selected(myReader, "trk.selected");
   TTreeReaderArray<float> dqdx(myReader, "trk.hits2.dqdx"); // hits on plane 2 (Collection)
   TTreeReaderArray<float> rr(myReader, "trk.hits2.rr");
@@ -128,6 +130,13 @@ void run_recom_loop() {
     }
     current_entry++;
 
+    if(*run == 14480){
+      if(*evt >= 748) continue;
+    }
+    if(*run == 14608){
+      if(*evt >= 9695) continue;
+    }
+    
     hist_selected -> Fill(*selected);
 
     // == Tracks selected as stopping
@@ -214,7 +223,7 @@ void run_recom_loop() {
   }
 
   TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
-  out_rootfile = new TFile(output_rootfile_dir + "/output_recom_2023B_GENIE_CV.root", "RECREATE");
+  out_rootfile = new TFile(output_rootfile_dir + "/output_recom_run14480.root", "RECREATE");
   out_rootfile -> cd();
   
   hist_selected -> Write();

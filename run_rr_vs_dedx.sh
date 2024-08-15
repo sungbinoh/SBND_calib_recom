@@ -1,0 +1,6 @@
+#root -l -b -q "src/plotter/draw_rr_vs_dedx.C(14480, 10, 10 )"
+root -l -b -q "src/plotter/draw_rr_vs_dedx.C(14608, 10, 10 )"
+root -l -b -q "src/plotter/draw_rr_vs_dedx.C(14685, 10, 10 )"
+root -l -b -q "src/plotter/draw_rr_vs_dedx.C(14724, 10, 10 )"
+root -l -b -q "src/plotter/draw_rr_vs_dedx.C(14833, 10, 10 )"
+root -l -b -q "src/plotter/draw_rr_vs_dedx.C(14860, 10, 10 )"

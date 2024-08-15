@@ -64,8 +64,15 @@ double Vav_MPV(float rr){
   double this_dEdx_BB = dEdx.dEdx_Bethe_Bloch(KE, mass);
 }
 */
-void run_recom_loop() {
+void run_recom_loop(int run_num = 0) {
 
+  bool isdata = false;
+  TString run_str = "";
+  if(run_num != 0){
+    isdata = true;
+    run_str = TString::Format("%d", run_num);
+  }
+  
   /////////////////////////////////
   // == Define histograms
   /////////////////////////////////
@@ -79,7 +86,7 @@ void run_recom_loop() {
   TChain *fChain = new TChain("caloskim/TrackCaloSkim");
   TString input_file_dir = getenv("DATA_PATH");
   //TString fileListPath = input_file_dir + "/sample_list/list_MCP2023B_corsika_1Dsim_1Dreco.txt";
-  TString fileListPath = input_file_dir + "/sample_list/list_run_14480_local.txt";
+  TString fileListPath = input_file_dir + "/sample_list/list_run_" + run_str + "_local.txt";
   AddFilesToChain(fileListPath, fChain);
 
   TTreeReader myReader(fChain);
@@ -89,13 +96,27 @@ void run_recom_loop() {
   TTreeReaderValue<int> evt(myReader, "trk.meta.evt");
 
   TTreeReaderValue<int> selected(myReader, "trk.selected");
-  TTreeReaderArray<float> dqdx(myReader, "trk.hits2.dqdx"); // hits on plane 2 (Collection)
-  TTreeReaderArray<float> rr(myReader, "trk.hits2.rr");
-  TTreeReaderArray<float> pitch(myReader, "trk.hits2.pitch");
-  TTreeReaderArray<float> time(myReader, "trk.hits2.h.time"); 
-  TTreeReaderArray<float> sp_x(myReader, "trk.hits2.h.sp.x");
-  TTreeReaderArray<float> sp_y(myReader, "trk.hits2.h.sp.y");
-  TTreeReaderArray<float> sp_z(myReader, "trk.hits2.h.sp.z");
+  TTreeReaderArray<float> dqdx0(myReader, "trk.hits0.dqdx"); // hits on plane 0 (Induction)
+  TTreeReaderArray<float> dqdx1(myReader, "trk.hits1.dqdx"); // hits on plane 1 (Induction)
+  TTreeReaderArray<float> dqdx2(myReader, "trk.hits2.dqdx"); // hits on plane 2 (Collection)
+  TTreeReaderArray<float> rr0(myReader, "trk.hits0.rr");
+  TTreeReaderArray<float> rr1(myReader, "trk.hits1.rr");
+  TTreeReaderArray<float> rr2(myReader, "trk.hits2.rr");
+  TTreeReaderArray<float> pitch0(myReader, "trk.hits0.pitch");
+  TTreeReaderArray<float> pitch1(myReader, "trk.hits1.pitch");
+  TTreeReaderArray<float> pitch2(myReader, "trk.hits2.pitch");
+  TTreeReaderArray<float> time0(myReader, "trk.hits0.h.time"); 
+  TTreeReaderArray<float> time1(myReader, "trk.hits1.h.time");
+  TTreeReaderArray<float> time2(myReader, "trk.hits2.h.time");
+  TTreeReaderArray<float> sp_x0(myReader, "trk.hits0.h.sp.x");
+  TTreeReaderArray<float> sp_y0(myReader, "trk.hits0.h.sp.y");
+  TTreeReaderArray<float> sp_z0(myReader, "trk.hits0.h.sp.z");
+  TTreeReaderArray<float> sp_x1(myReader, "trk.hits1.h.sp.x");
+  TTreeReaderArray<float> sp_y1(myReader, "trk.hits1.h.sp.y");
+  TTreeReaderArray<float> sp_z1(myReader, "trk.hits1.h.sp.z");
+  TTreeReaderArray<float> sp_x2(myReader, "trk.hits2.h.sp.x");
+  TTreeReaderArray<float> sp_y2(myReader, "trk.hits2.h.sp.y");
+  TTreeReaderArray<float> sp_z2(myReader, "trk.hits2.h.sp.z");
   TTreeReaderArray<float> dir_x(myReader, "trk.dir.x"); 
   TTreeReaderArray<float> dir_y(myReader, "trk.dir.y");
   TTreeReaderArray<float> dir_z(myReader, "trk.dir.z");
@@ -142,16 +163,16 @@ void run_recom_loop() {
     // == Tracks selected as stopping
     if (*selected == 0) {
 
-      unsigned N_reco_hits = rr.GetSize();
-      TVector3 this_reco_start(sp_x[N_reco_hits - 1], sp_y[N_reco_hits - 1], sp_z[N_reco_hits - 1]);
-      TVector3 this_reco_end(sp_x[0], sp_y[0], sp_z[0]);
+      unsigned N_reco_hits = rr2.GetSize();
+      TVector3 this_reco_start(sp_x2[N_reco_hits - 1], sp_y2[N_reco_hits - 1], sp_z2[N_reco_hits - 1]);
+      TVector3 this_reco_end(sp_x2[0], sp_y2[0], sp_z2[0]);
       TVector3 this_true_start(true_start_x[0], true_start_y[0], true_start_z[0]);
       TVector3 this_true_end(true_end_x[0], true_end_y[0], true_end_z[0]);
 
       double dist_start = (this_reco_start - this_true_start).Mag();
       double dist_end = (this_reco_end - this_true_end).Mag();
 
-      double this_reco_trk_len = rr[N_reco_hits - 1];
+      double this_reco_trk_len = rr2[N_reco_hits - 1];
 
       // == Pick first and last hits to check if the track is passing the cathode
       double first_x = -999.;
@@ -161,14 +182,14 @@ void run_recom_loop() {
       double last_y = -999.;
       double last_z = -999.;
 
-      first_x = sp_x[N_reco_hits - 1];
-      first_y = sp_y[N_reco_hits - 1];
-      first_z = sp_z[N_reco_hits - 1];
-      for (unsigned i = 0; i < dqdx.GetSize(); i++) {
-        if(rr[i] > 0){
-	  last_x = sp_x[i];
-	  last_y = sp_y[i];
-          last_z = sp_z[i];
+      first_x = sp_x2[N_reco_hits - 1];
+      first_y = sp_y2[N_reco_hits - 1];
+      first_z = sp_z2[N_reco_hits - 1];
+      for (unsigned i = 0; i < dqdx2.GetSize(); i++) {
+        if(rr2[i] > 0){
+	  last_x = sp_x2[i];
+	  last_y = sp_y2[i];
+          last_z = sp_z2[i];
 	  break;
 	}	    
       }
@@ -212,18 +233,25 @@ void run_recom_loop() {
       */
       // == Track length 60 cm cut
       if(this_reco_trk_len < 60. || !passing_cathode) continue;
-      Fill_track_plots("trklen_60cm_passing_cathode", dist_start, dist_end, rr, dqdx);
-      Fill_hit_plots("trklen_60cm_passing_cathode", rr, dqdx, cos_xy, cos_yz, cos_zx);
-
+      Fill_track_plots("plane0_trklen_60cm_passing_cathode", dist_start, dist_end, rr0, dqdx0);
+      Fill_track_plots("plane1_trklen_60cm_passing_cathode", dist_start, dist_end, rr1, dqdx1);
+      Fill_track_plots("plane2_trklen_60cm_passing_cathode", dist_start, dist_end, rr2, dqdx2);
+      Fill_hit_plots("plane0_trklen_60cm_passing_cathode", rr0, dqdx0, cos_xy, cos_yz, cos_zx);
+      Fill_hit_plots("plane1_trklen_60cm_passing_cathode", rr1, dqdx1, cos_xy, cos_yz, cos_zx);
+      Fill_hit_plots("plane2_trklen_60cm_passing_cathode", rr2, dqdx2, cos_xy, cos_yz, cos_zx);
+      
       if(fabs(cos_zx) > 0.75) continue;
-      Fill_track_plots("trklen_60cm_passing_cathode_coszx", dist_start, dist_end, rr, dqdx);
-      Fill_corrected_dqdx_plots("trklen_60cm_passing_cathode_coszx", rr, dqdx, sp_x, pitch);
+      Fill_track_plots("trklen_60cm_passing_cathode_coszx", dist_start, dist_end, rr2, dqdx2);
 
+      
+      Fill_corrected_dqdx_plots("plane0_trklen_60cm_passing_cathode_coszx", rr0, dqdx0, sp_x0, pitch0);
+      Fill_corrected_dqdx_plots("plane1_trklen_60cm_passing_cathode_coszx", rr1, dqdx1, sp_x1, pitch1);
+      Fill_corrected_dqdx_plots("plane2_trklen_60cm_passing_cathode_coszx", rr2, dqdx2, sp_x2, pitch2);
     }
   }
 
   TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
-  out_rootfile = new TFile(output_rootfile_dir + "/output_recom_run14480.root", "RECREATE");
+  out_rootfile = new TFile(output_rootfile_dir + "/output_recom_" + run_str + ".root", "RECREATE");
   out_rootfile -> cd();
   
   hist_selected -> Write();

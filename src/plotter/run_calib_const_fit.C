@@ -5,6 +5,9 @@
 #include "BetheBloch.h"
 #include <iostream>
 
+bool isdata = false;
+TString run_str = "";
+
 TRandom3 gRan(1800);
 map<TString, vector<double>> fitting_results;
 
@@ -18,9 +21,7 @@ vector<double> MPV_err_vec;
 vector<double> dEdx_vec;
 vector<double> dEdx_err_vec;
 
-TString run_str = "Run14480";
-
-void Write_1D_hist(TH1D *in, TString outname, TString particle, TString latex_str, TString title_x, TString title_y, double x_min, double x_max, int rebin, bool do_langau_fit){
+void Write_1D_hist(TH1D *in, TString outname, TString particle, TString latex_str, TString plane, TString title_x, TString title_y, double x_min, double x_max, int rebin, bool do_langau_fit){
 
   TCanvas *c = new TCanvas("", "", 800, 600);
   canvas_margin(c);
@@ -53,8 +54,8 @@ void Write_1D_hist(TH1D *in, TString outname, TString particle, TString latex_st
     double max_x = in -> GetBinCenter(in -> GetMaximumBin());
     double bin_width = in -> GetBinWidth(1);
     Double_t fitting_range[2];
-    fitting_range[0] = 0.;
-    fitting_range[1] = 5000.;
+    fitting_range[0] = 800.;
+    fitting_range[1] = 1700.;
     Double_t sv[4], pllo[4], plhi[4], fp[4], fpe[4];
     sv[0] = 20.;
     sv[1] = max_x;
@@ -97,8 +98,8 @@ void Write_1D_hist(TH1D *in, TString outname, TString particle, TString latex_st
     l -> AddEntry(in, Form("#chi^{2} / ndf : %.2f", chisqr / ndf), "");
     l -> Draw("same");
 
-    MPV_vec_map[particle].push_back(this_MPV);
-    MPV_err_vec_map[particle].push_back(this_MPV_err);
+    MPV_vec_map[particle+plane].push_back(this_MPV);
+    MPV_err_vec_map[particle+plane].push_back(this_MPV_err);
     MPV_vec.push_back(this_MPV);
     MPV_err_vec.push_back(this_MPV_err);
   }
@@ -112,8 +113,8 @@ void Write_1D_hist(TH1D *in, TString outname, TString particle, TString latex_st
     l -> AddEntry(in, Form("StdDev : %.2f", this_stddev), "");
     l -> Draw("same");
   
-    dEdx_vec_map[particle].push_back(this_mean);
-    dEdx_err_vec_map[particle].push_back(this_stddev);
+    dEdx_vec_map[particle+plane].push_back(this_mean);
+    dEdx_err_vec_map[particle+plane].push_back(this_stddev);
     dEdx_vec.push_back(this_mean);
     dEdx_err_vec.push_back(this_stddev);
   }
@@ -133,275 +134,26 @@ void Write_1D_hist(TH1D *in, TString outname, TString particle, TString latex_st
   latex_particle.SetTextSize(0.03);
   latex_Nhits.SetTextSize(0.06);
   latex_method.SetTextSize(0.06);
-  latex_ProtoDUNE.DrawLatex(0.16, 0.96, "#font[62]{SBND Simulation} #font[42]{#it{#scale[0.8]{Preliminary}}}");
+  if(isdata) latex_ProtoDUNE.DrawLatex(0.16, 0.96, "#font[62]{SBND Data} Run " + run_str);
+  else latex_ProtoDUNE.DrawLatex(0.16, 0.96, "#font[62]{SBND Simulation} #font[42]{#it{#scale[0.8]{Preliminary}}}");
   latex_particle.DrawLatex(0.95, 0.96, particle_label_str);
   latex_method.DrawLatex(0.18, 0.87, latex_str);
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  c -> SaveAs(output_plot_dir + "/" + run_str + "/" + outname + ".pdf");
+  TString outfile_str = output_plot_dir + "/MC/" + outname + ".pdf";
+  if(isdata) outfile_str = output_plot_dir + "/Run" + run_str + "/" + outname + ".pdf";
+  c -> SaveAs(outfile_str);
   c -> Close();
 
 }
 
-void Fit_rr_vs_pitch_plots(TString input_file_name, int rebin_x, int rebin_y, double rr_low, double rr_high){
-
-  TString this_id = "id";
-
-  TString input_file_dir = getenv("OUTPUTROOT_PATH");
-  TFile *f = new TFile(input_file_dir + "/" + input_file_name);
-  TH2D *hist_2D = (TH2D*)gDirectory -> Get("rr_vs_pitch_trklen_60cm_passing_cathode_coszx");
-
-  hist_2D -> RebinX(rebin_x);
-  hist_2D -> RebinY(rebin_y);
-
-  int N_binsX = hist_2D -> GetNbinsX();
-  int N_binsY = hist_2D -> GetNbinsY();
-
-  for(int i = 1; i < N_binsX + 1; i++){
-    TString i_str = Form("%d", i);
-    double this_rr = hist_2D -> GetXaxis() -> GetBinCenter(i);
-    if(this_rr > rr_high || this_rr < rr_low) continue;
-    double this_rr_err = 0.5 * hist_2D -> GetXaxis() -> GetBinWidth(i);
-    TString rr_str = Form("rr%.0fto%.0fcm", this_rr - this_rr_err, this_rr + this_rr_err);
-    if(this_rr + this_rr_err < 10.){
-      rr_str = Form("rr0%.0fto0%.0fcm", this_rr - this_rr_err, this_rr + this_rr_err);
-    }
-    else if(this_rr - this_rr_err < 10.){
-      rr_str = Form("rr0%.0fto%.0fcm", this_rr - this_rr_err, this_rr + this_rr_err);
-    }
-    TString rr_latex = Form("Resdual range : %.2f - %.2f cm", this_rr -this_rr_err, this_rr + this_rr_err);
-    TString this_hist_name = "Pitch_" + rr_str;
-
-    TH1D * this_hist_1D = new TH1D(this_hist_name, this_hist_name, N_binsY, 0., 2.);
-
-    for(int j = 1; j < N_binsY + 1; j++){
-      double this_content = hist_2D -> GetBinContent(i, j);
-      double this_content_err = hist_2D -> GetBinError(i, j);
-      this_hist_1D -> SetBinContent(j, this_content);
-      this_hist_1D -> SetBinError(j, this_content_err);
-    }
-
-    double max_y = this_hist_1D -> GetMaximum();
-
-    TCanvas *c = new TCanvas("", "", 800, 600);
-    canvas_margin(c);
-    gStyle -> SetOptStat(1111);
-
-    TH1D * template_h = new TH1D("", "", 1., 0., 2.);
-    template_h -> SetStats(0);
-    template_h -> GetYaxis() -> SetRangeUser(0., max_y * 1.5);
-    template_h -> GetXaxis() -> SetTitle("Pitch [cm]");
-    template_h -> GetXaxis() -> SetTitleSize(0.037);
-    template_h -> GetXaxis() -> SetTitleOffset(1.4);
-    template_h -> GetXaxis() -> SetLabelSize(0.035);
-    template_h -> GetYaxis() -> SetTitle("Events");
-    template_h -> GetYaxis() -> SetTitleSize(0.05);
-    template_h -> GetYaxis() -> SetLabelSize(0.035);
-    template_h -> Draw();
-
-    this_hist_1D -> SetMarkerColor(kBlack);
-    this_hist_1D -> SetMarkerStyle(32);
-    this_hist_1D -> SetMarkerSize(0.7);
-    this_hist_1D -> SetLineColor(kBlack);
-    this_hist_1D -> SetLineWidth(1);
-    this_hist_1D -> Draw("epsame");
-
-    TH1D *this_hist_1D_clone = (TH1D*)this_hist_1D -> Clone();
-    double this_1D_mean = this_hist_1D -> GetMean();
-    TLine *l_mean = new TLine(this_1D_mean, 0., this_1D_mean, max_y * 1.5);
-    l_mean -> SetLineStyle(7);
-    l_mean -> SetLineColor(kRed);
-    l_mean -> Draw("lsame");
-
-    TLegend *l = new TLegend(0.50, 0.40, 0.92, 0.85);
-    l -> AddEntry(this_hist_1D, "Pitch [cm]", "pl");
-    l -> AddEntry(l_mean, Form("Mean : %.2f", this_1D_mean), "l");
-    l -> Draw("same");
-
-    TLatex latex_ProtoDUNE, latex_particle, latex_Nhits, latex_method;
-    latex_ProtoDUNE.SetNDC();
-    latex_particle.SetNDC();
-    latex_Nhits.SetNDC();
-    latex_method.SetNDC();
-    latex_particle.SetTextAlign(31);
-    latex_ProtoDUNE.SetTextSize(0.03);
-    latex_particle.SetTextSize(0.03);
-    latex_Nhits.SetTextSize(0.06);
-    latex_method.SetTextSize(0.06);
-    latex_ProtoDUNE.DrawLatex(0.16, 0.96, "#font[62]{SBND Simulation} #font[42]{#it{#scale[0.8]{Preliminary}}}");
-    latex_particle.DrawLatex(0.95, 0.96, "Cathode Passing Stopping Tracks");
-    latex_method.DrawLatex(0.18, 0.87, rr_latex);
-
-    TString output_plot_dir = getenv("PLOT_PATH");
-    output_plot_dir = output_plot_dir + "/recom_fit/1D/pitch/";
-    c -> SaveAs(output_plot_dir + "/" + run_str + "/" + this_hist_name + ".pdf");
-
-    c -> Close();
-
-    fitting_results[this_id + "_pitch_mean"].push_back(this_1D_mean);
-  }
-}
-
-
-void Fit_rr_vs_dqdx_plots(TString input_file_name, int rebin_x, int rebin_y, double rr_low, double rr_high){
-
-  TString this_id = "id";
-
-  TString input_file_dir = getenv("OUTPUTROOT_PATH");
-  TFile *f = new TFile(input_file_dir + "/" + input_file_name);
-  TH2D *hist_2D = (TH2D*)gDirectory -> Get("rr_vs_corr_dqdx_trklen_60cm_passing_cathode_coszx");
-
-  hist_2D -> RebinX(rebin_x);
-  hist_2D -> RebinY(rebin_y);
-
-  int N_binsX = hist_2D -> GetNbinsX();
-  int N_binsY = hist_2D -> GetNbinsY();
-
-  for(int i = 1; i < N_binsX + 1; i++){
-    TString i_str = Form("%d", i);
-    double this_rr = hist_2D -> GetXaxis() -> GetBinCenter(i);
-    if(this_rr > rr_high || this_rr < rr_low) continue;
-    double this_rr_err = 0.5 * hist_2D -> GetXaxis() -> GetBinWidth(i);
-    TString rr_str = Form("rr%.0fto%.0fcm", this_rr - this_rr_err, this_rr + this_rr_err);
-    if(this_rr + this_rr_err < 10.){
-      rr_str = Form("rr0%.0fto0%.0fcm", this_rr - this_rr_err, this_rr + this_rr_err);
-    }
-    else if(this_rr - this_rr_err < 10.){
-      rr_str = Form("rr0%.0fto%.0fcm", this_rr - this_rr_err, this_rr + this_rr_err);
-    }
-    TString rr_latex = Form("Resdual range : %.2f - %.2f cm", this_rr -this_rr_err, this_rr + this_rr_err);
-    TString this_hist_name = "Corr_dQdx_" + rr_str;
-
-    TH1D * this_hist_1D = new TH1D(this_hist_name, this_hist_name, N_binsY, 0., 3000.);
-
-    for(int j = 1; j < N_binsY + 1; j++){
-      double this_content = hist_2D -> GetBinContent(i, j);
-      double this_content_err = hist_2D -> GetBinError(i, j);
-      //cout << "[Fit_rr_vs_dqdx_plots] this_content : " << this_content << endl;
-      this_hist_1D -> SetBinContent(j, this_content);
-      this_hist_1D -> SetBinError(j, this_content_err);
-    }
-
-    double max_y = this_hist_1D -> GetMaximum();
-
-    TCanvas *c = new TCanvas("", "", 800, 600);
-    canvas_margin(c);
-    gStyle -> SetOptStat(1111);
-
-    TH1D * template_h = new TH1D("", "", 1., 0., 3000.);
-    template_h -> SetStats(0);
-    template_h -> GetYaxis() -> SetRangeUser(0., max_y * 1.5);
-    template_h -> GetXaxis() -> SetTitle("dQ/dx [ADC/cm]");
-    template_h -> GetXaxis() -> SetTitleSize(0.037);
-    template_h -> GetXaxis() -> SetTitleOffset(1.4);
-    template_h -> GetXaxis() -> SetLabelSize(0.035);
-    template_h -> GetYaxis() -> SetTitle("Events");
-    template_h -> GetYaxis() -> SetTitleSize(0.05);
-    template_h -> GetYaxis() -> SetLabelSize(0.035);
-    template_h -> Draw();
-
-    this_hist_1D -> SetMarkerColor(kBlack);
-    this_hist_1D -> SetMarkerStyle(32);
-    this_hist_1D -> SetMarkerSize(0.7);
-    this_hist_1D -> SetLineColor(kBlack);
-    this_hist_1D -> SetLineWidth(1);
-    this_hist_1D -> Draw("epsame");
-
-    TH1D *this_hist_1D_clone = (TH1D*)this_hist_1D -> Clone();
-
-    double max_x = this_hist_1D -> GetBinCenter(this_hist_1D -> GetMaximumBin());
-    Double_t fitting_range[2];
-    fitting_range[0] = 0.;
-    fitting_range[1] = 3000.;
-    Double_t sv[4], pllo[4], plhi[4], fp[4], fpe[4];
-    sv[0] = 20.;
-    sv[1] = max_x;
-    //sv[2] = this_hist_1D -> Integral() * 0.05;
-    sv[2] = this_hist_1D -> Integral();
-    sv[3] = 70.;
-    for(int j=0; j<4; ++j){
-      pllo[j] = 0.01*sv[j];
-      plhi[j] = 100*sv[j];
-    }
-
-    Double_t chisqr;
-    Int_t    ndf;
-    Int_t    status;
-    TF1 *this_Langau_fit = langaufit(this_hist_1D_clone, fitting_range, sv,pllo,plhi,fp,fpe,&chisqr,&ndf,&status, "Langau_this_Langau" + this_hist_name);
-
-    TF1 *this_Langau =  new TF1("this_Langau", langaufun, fitting_range[0], fitting_range[1], 4);
-    this_Langau -> SetParameters(this_Langau_fit -> GetParameters());
-    this_Langau -> SetNpx(1000);
-    this_Langau -> SetLineColor(kRed);
-    this_Langau -> SetLineWidth(2);
-    this_Langau -> Draw("lsame");
-
-    double this_Landau_sigma = this_Langau_fit ->GetParameter(0);
-    double this_Landau_sigma_err =this_Langau_fit -> GetParError(0);
-    double this_MPV = this_Langau_fit -> GetParameter(1);
-    double this_MPV_err = this_Langau_fit -> GetParError(1);
-    double this_par2 = this_Langau_fit -> GetParameter(2);
-    double this_par2_err =this_Langau_fit -> GetParError(2);
-    double this_Gaus_sigma= this_Langau_fit -> GetParameter(3);
-    double this_Gaus_sigma_err= this_Langau_fit -> GetParError(3);
-
-    this_hist_1D -> Draw("epsame");
-
-    /*
-    TLine *l_MPV = new TLine(this_MPV, 0., this_MPV, max_y * 1.5);
-    l_mean -> SetLineStyle(7);
-    l_mean -> SetLineColor(kRed);
-    l_mean -> Draw("lsame");
-    */
-    TLegend *l = new TLegend(0.60, 0.40, 0.80, 0.80);
-    l -> AddEntry(this_hist_1D, Form("dQ/dx (%.0f)", this_hist_1D -> Integral()), "pl");
-    l -> AddEntry(this_Langau, Form("#sigma_{Landau} : %.2f #pm %.2f", this_Landau_sigma, this_Landau_sigma_err), "l");
-    l -> AddEntry(this_hist_1D, Form("MPV : %.2f #pm %.2f", this_MPV, this_MPV_err), "");
-    l -> AddEntry(this_hist_1D, Form("#sigma_{Gaus} : %.2f #pm %.2f", this_Gaus_sigma, this_Gaus_sigma_err), "");
-    l -> AddEntry(this_hist_1D, Form("Par2 : %.2f #pm %.2f", this_par2, this_par2_err), "");
-    l -> AddEntry(this_hist_1D, Form("#chi^{2} / ndf : %.2f", chisqr / ndf), "");
-    //l -> AddEntry(l_mean, Form("Mean : %.2f", this_1D_mean), "l");
-    l -> Draw("same");
-
-    TLatex latex_ProtoDUNE, latex_particle, latex_Nhits, latex_method;
-    latex_ProtoDUNE.SetNDC();
-    latex_particle.SetNDC();
-    latex_Nhits.SetNDC();
-    latex_method.SetNDC();
-    latex_particle.SetTextAlign(31);
-    latex_ProtoDUNE.SetTextSize(0.03);
-    latex_particle.SetTextSize(0.03);
-    latex_Nhits.SetTextSize(0.06);
-    latex_method.SetTextSize(0.06);
-    latex_ProtoDUNE.DrawLatex(0.16, 0.96, "#font[62]{SBND Simulation} #font[42]{#it{#scale[0.8]{Preliminary}}}");
-    latex_particle.DrawLatex(0.95, 0.96, "Cathode Passing Stopping Tracks");
-    latex_method.DrawLatex(0.18, 0.87, rr_latex);
-
-    gPad->RedrawAxis();
-
-    TString output_plot_dir = getenv("PLOT_PATH");
-    output_plot_dir = output_plot_dir + "/recom_fit/1D/dqdx/";
-    c -> SaveAs(output_plot_dir + "/" + run_str + "/" + this_hist_name + ".pdf");
-
-    c -> Close();
-
-    fitting_results[this_id + "_rr"].push_back(this_rr);
-    fitting_results[this_id + "_rr_err"].push_back(this_rr_err);
-    fitting_results[this_id + "_MPV"].push_back(this_MPV);
-    fitting_results[this_id + "_MPV_err"].push_back(this_MPV_err);
-    fitting_results[this_id + "_sigma_gaus"].push_back(this_Gaus_sigma);
-    fitting_results[this_id + "_sigma_gaus_err"].push_back(this_Gaus_sigma_err);
-    fitting_results[this_id + "_sigma_Landau"].push_back(this_Landau_sigma);
-    fitting_results[this_id + "_sigma_Landau_err"].push_back(this_Landau_sigma_err);
-  }
-}
-
-void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString histname, TString particle, int rebin_y, double dEdx_low, double dEdx_high, double dEdx_MPV_binning[], int num_NbinsX, int rebin_dqdx[]){
+void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString plane, TString particle, int rebin_y, double dEdx_low, double dEdx_high, double dEdx_MPV_binning[], int num_NbinsX, int rebin_dqdx[]){
 
   //const Int_t num_NbinsX = sizeof(dEdx_MPV_binning) / sizeof(dEdx_MPV_binning[0]) - 1;
   
   TString this_id = "id";
-
+  TString histname = "dEdx_MPV_vs_corr_dqdx_" + plane + "_trklen_60cm_passing_cathode_coszx";
+  
   TString input_file_dir = getenv("OUTPUTROOT_PATH");
   TFile *f = new TFile(input_file_dir + "/" + input_file_name);
   TH2D *hist_2D = (TH2D*)gDirectory -> Get(histname);
@@ -468,15 +220,16 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString histname, TStri
       
     }
 
-    Write_1D_hist(this_1D_X, "/recom_fit/1D/dedx/" + particle + "/" + this_1D_X_hist_name, particle, dEdx_latex_str, "dE/dx MPV [MeV/cm]", "Events", this_dEdx_MPV_low, this_dEdx_MPV_high, 1., false);
-    Write_1D_hist(this_1D_Y, "/recom_fit/1D/dqdx/" + particle + "/" + this_1D_Y_hist_name, particle, dEdx_latex_str, "dQ/dx [ADC/cm]", "Events", 0., 5000., rebin_dqdx[i - 1], true);
+    Write_1D_hist(this_1D_X, "/" + plane + "_" + this_1D_X_hist_name, particle, dEdx_latex_str, plane, "dE/dx MPV [MeV/cm]", "Events", this_dEdx_MPV_low, this_dEdx_MPV_high, 1., false);
+    Write_1D_hist(this_1D_Y, "/" + plane + "_" + this_1D_Y_hist_name, particle, dEdx_latex_str, plane, "dQ/dx [ADC/cm]", "Events", 0., 5000., rebin_dqdx[i - 1], true);
   }
 
   TCanvas *c = new TCanvas("", "", 800, 600);
   canvas_margin(c);
   gStyle -> SetOptStat(1111);
   c -> SetLogz();
-
+  c -> SetRightMargin(0.15);  
+  
   double z_max = hist_2D -> GetMaximum();
   TH1D * template_h = new TH1D("", "", 1., dEdx_low, dEdx_high);
   template_h -> SetStats(0);
@@ -492,16 +245,18 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString histname, TStri
 
   hist_2D -> Draw("colzsame");
   
-  TGraphErrors * this_gr = new TGraphErrors(MPV_vec_map[particle].size(), &dEdx_vec_map[particle][0], &MPV_vec_map[particle][0], &dEdx_err_vec_map[particle][0], &MPV_err_vec_map[particle][0]);
-  this_gr -> SetLineColor(kRed);
+  TGraphErrors * this_gr = new TGraphErrors(MPV_vec_map[particle+plane].size(), &dEdx_vec_map[particle+plane][0], &MPV_vec_map[particle+plane][0], &dEdx_err_vec_map[particle+plane][0], &MPV_err_vec_map[particle+plane][0]);
+  //this_gr -> SetLineColor(kRed);
+  this_gr -> SetLineColor(kBlack);
   this_gr -> SetLineWidth(2);
-  this_gr -> SetMarkerColor(kRed);
-  this_gr -> SetMarkerStyle(32);
-  this_gr -> SetMarkerSize(0.7);
-  this_gr -> Draw("epsame");
+  //this_gr -> SetMarkerColor(kRed);
+  this_gr -> SetMarkerColor(kBlack);
+  //this_gr -> SetMarkerStyle(32);
+  this_gr -> SetMarkerSize(0.8);
+  this_gr -> Draw("ezpsame");
 
-  for(unsigned int i = 0; i < MPV_vec_map[particle].size(); i++){
-    cout << i << ", MPV_vec_map[particle] : " << MPV_vec_map[particle].at(i) << ", dEdx_vec : " << dEdx_vec_map[particle].at(i) << endl;
+  for(unsigned int i = 0; i < MPV_vec_map[particle+plane].size(); i++){
+    cout << i << ", MPV_vec_map[particle] " << plane << " : " << MPV_vec_map[particle+plane].at(i) << ", dEdx_vec : " << dEdx_vec_map[particle+plane].at(i) << endl;
   }
 
   double fit_x_max = 2.0;
@@ -510,93 +265,53 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString histname, TStri
   f_mod_box -> SetParameters(2.00, 0.212, 0.93);
   f_mod_box -> FixParameter(1, 0.212);
   f_mod_box -> FixParameter(2, 0.93);
-  f_mod_box -> SetLineColor(kBlack);
+  //f_mod_box -> SetLineColor(kBlack);
+  f_mod_box -> SetLineColor(kRed);
   f_mod_box -> SetLineWidth(3);
   f_mod_box -> SetLineStyle(7);
   this_gr -> Fit("f_mod_box", "RNS");
   f_mod_box -> Draw("lsame");
 
-  TLegend *l = new TLegend(0.5, 0.60, 0.85, 0.85);
+  this_gr -> Draw("ezpsame");
+  
+  TLegend *l = new TLegend(0.45, 0.65, 0.80, 0.90);
   l -> AddEntry(this_gr, "Data points", "lp");
   l -> AddEntry(f_mod_box, "Fitting result", "l");
-  l -> AddEntry(f_mod_box, Form("C_{cal.} = %.2f #pm %.3f #times 10^{-2} [ADC/electrons]", f_mod_box -> GetParameter(0), f_mod_box -> GetParError(0)), "");
+  l -> AddEntry(f_mod_box, Form("C_{cal.} = %.3f #pm %.3f #times 10^{-2} [ADC/electrons]", f_mod_box -> GetParameter(0), f_mod_box -> GetParError(0)), "");
   l -> AddEntry(f_mod_box, Form("#beta' = %.3f #pm %.3f [(kV/cm)(g/cm^{2})/MeV]", f_mod_box -> GetParameter(1), f_mod_box -> GetParError(1)), "");
   l -> AddEntry(f_mod_box, Form("#alpha = %.2f #pm %.3f",f_mod_box -> GetParameter(2), f_mod_box -> GetParError(2)), "");
   l -> Draw("same");
 
+  TString particle_label_str = "";
+  if(particle == "muon") particle_label_str = "Cathode Passing Stopping Tracks";
+  if(particle == "proton") particle_label_str = "Stopping Proton Candidates";
+  TLatex latex_SBND, latex_method;
+  latex_SBND.SetNDC();
+  latex_method.SetNDC();
+  latex_method.SetTextAlign(31);
+  latex_SBND.SetTextSize(0.03);
+  latex_method.SetTextSize(0.03);
+  if(isdata) latex_SBND.DrawLatex(0.16, 0.96, "#font[62]{SBND Data} Run " + run_str + ", " + plane);
+  else latex_SBND.DrawLatex(0.16, 0.96, "#font[62]{SBND Simulation} #font[42]{#it{#scale[0.8]{Preliminary}}}");
+  latex_method.DrawLatex(0.90, 0.96, particle_label_str);
+
   TString output_plot_dir = getenv("PLOT_PATH");
-  output_plot_dir = output_plot_dir + "/" + run_str + "/" + "/recom_fit/2D/";
-  c -> SaveAs(output_plot_dir + "dEdx_MPV_vs_corr_dqdx_" + particle + "_Run14480.pdf");
+  TString outfile_str = output_plot_dir + "/MC/" + "/recom_fit/2D/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + ".pdf";
+  if(isdata) outfile_str = output_plot_dir + "/Run" + run_str + "/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + ".pdf";
+  c -> SaveAs(outfile_str);
   
   c -> Close();
 
 }
 
-void fit_modified_box(TString id, double x_min, double x_max, double y_min, double y_max){
+void run_calib_const_fit(int run_num = 0){
 
-  TCanvas *c = new TCanvas("", "", 800, 600);
-  canvas_margin(c);
-  gStyle -> SetOptStat(1111);
-
-  TH1D * template_h = new TH1D("", "", 1., x_min, x_max);
-  template_h -> SetStats(0);
-  template_h -> GetYaxis() -> SetRangeUser(y_min, y_max);
-  template_h -> GetXaxis() -> SetTitle("dE/dx [MeV/cm]");
-  template_h -> GetXaxis() -> SetTitleSize(0.037);
-  template_h -> GetXaxis() -> SetTitleOffset(1.4);
-  template_h -> GetXaxis() -> SetLabelSize(0.035);
-  template_h -> GetYaxis() -> SetTitle("dQ/dx [ADC/cm]");
-  template_h -> GetYaxis() -> SetTitleSize(0.05);
-  template_h -> GetYaxis() -> SetLabelSize(0.035);
-  template_h -> Draw();
-
-  TGraphErrors * muon_gr = new TGraphErrors(MPV_vec_map["muon"].size(), &dEdx_vec_map["muon"][0], &MPV_vec_map["muon"][0], &dEdx_err_vec_map["muon"][0], &MPV_err_vec_map["muon"][0]);
-  muon_gr -> SetLineColor(kRed);
-  muon_gr -> SetLineWidth(2);
-  muon_gr -> SetMarkerColor(kRed);
-  muon_gr -> SetMarkerStyle(32);
-  muon_gr -> SetMarkerSize(0.7);
-  muon_gr -> Draw("epsame");
-
-  TGraphErrors * proton_gr = new TGraphErrors(MPV_vec_map["proton"].size(), &dEdx_vec_map["proton"][0], &MPV_vec_map["proton"][0], &dEdx_err_vec_map["proton"][0], &MPV_err_vec_map["proton"][0]);
-  proton_gr -> SetLineColor(kBlue);
-  proton_gr -> SetLineWidth(2);
-  proton_gr -> SetMarkerColor(kBlue);
-  proton_gr -> SetMarkerStyle(32);
-  proton_gr -> SetMarkerSize(0.7);
-  proton_gr -> Draw("epsame");
-
-  TGraphErrors * combined_gr = new TGraphErrors(MPV_vec.size(), &dEdx_vec[0], &MPV_vec[0], &dEdx_err_vec[0], &MPV_err_vec[0]);
-  TF1 * f_mod_box = new TF1("f_mod_box", "(294.49153 * [0] / [1]) * log(1.4388489 * [1] * x + [2])", 1.6, 9.);
-  f_mod_box -> SetParameters(2.00, 0.212, 0.93);
-  //f_mod_box -> FixParameter(0, 2.00);
-  f_mod_box -> SetLineColor(kBlack);
-  f_mod_box -> SetLineWidth(2);
-  f_mod_box -> SetLineStyle(7);
-  combined_gr -> Fit("f_mod_box", "RNS");
-  f_mod_box -> Draw("lsame");
-
-  TLegend *l = new TLegend(0.5, 0.25, 0.85, 0.50);
-  l -> AddEntry(muon_gr, "Muon points", "lp");
-  l -> AddEntry(proton_gr, "Proton points", "lp");
-  l -> AddEntry(f_mod_box, "Fitting result", "l");
-  l -> AddEntry(f_mod_box, Form("C_{cal.} = %.2f  #pm %.3f #times 10^{-2} [ADC/electrons]", f_mod_box -> GetParameter(0), f_mod_box -> GetParError(0)), "");
-  l -> AddEntry(f_mod_box, Form("#beta' = %.3f #pm %.3f [(kV/cm)(g/cm^{2})/MeV]", f_mod_box -> GetParameter(1), f_mod_box -> GetParError(1)), "");
-  l -> AddEntry(f_mod_box, Form("#alpha = %.2f #pm %.3f",f_mod_box -> GetParameter(2), f_mod_box -> GetParError(2)), "");
-  l -> Draw("same");
-
-  TString output_plot_dir = getenv("PLOT_PATH");
-  output_plot_dir = output_plot_dir + "/" + run_str + "/" + "/recom_fit/2D/";
-  c -> SaveAs(output_plot_dir + "dEdx_MPV_vs_corr_dqdx_combined.pdf");
-}
-
-
-
-void run_calib_const_fit(){
-
+  if(run_num != 0){
+    isdata = true;
+    run_str = TString::Format("%d", run_num);
+  }
+  
   setTDRStyle();
-  //Fit_rr_vs_pitch_plots("output_recom.root", 2, 4, 2., 80.);
-  //Fit_rr_vs_dqdx_plots("output_recom.root", 2, 20, 2., 80.);
   double dEdx_MPV_binning_muon[] = {0.,
 				    1.60, 1.62, 1.64, 1.66, 1.68,
 				    1.70, 1.8, 
@@ -618,8 +333,7 @@ void run_calib_const_fit(){
 			     4, 4, 4, 4, 4,
 			     4, 4, 4, 4, 4};
 
-  Fit_dEdx_MPV_vs_dqdx_plots("output_recom_run14480.root", "dEdx_MPV_vs_corr_dqdx_trklen_60cm_passing_cathode_coszx", "muon", 5, 1.5, 2.0, dEdx_MPV_binning_muon, 8, rebin_dqdx_muon);
-  //Fit_dEdx_MPV_vs_dqdx_plots("output_recom_muscore40.root", "dEdx_MPV_vs_corr_dqdx_proton", "proton", 5, 1.5, 10.0, dEdx_MPV_binning_proton, 20, rebin_dqdx_proton);
-
-  //fit_modified_box("", 1.5, 10.0, 0., 5000.);
+  Fit_dEdx_MPV_vs_dqdx_plots("output_recom_" + run_str + ".root", "plane0", "muon", 5, 1.5, 2.0, dEdx_MPV_binning_muon, 8, rebin_dqdx_muon);
+  Fit_dEdx_MPV_vs_dqdx_plots("output_recom_" + run_str + ".root", "plane1", "muon", 5, 1.5, 2.0, dEdx_MPV_binning_muon, 8, rebin_dqdx_muon);
+  Fit_dEdx_MPV_vs_dqdx_plots("output_recom_" + run_str + ".root", "plane2", "muon", 5, 1.5, 2.0, dEdx_MPV_binning_muon, 8, rebin_dqdx_muon);
 }

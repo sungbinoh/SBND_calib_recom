@@ -7,6 +7,7 @@
 
 bool isdata = false;
 TString run_str = "";
+TString suffix = "";
 
 TRandom3 gRan(1800);
 map<TString, vector<double>> fitting_results;
@@ -20,6 +21,9 @@ vector<double> MPV_vec;
 vector<double> MPV_err_vec;
 vector<double> dEdx_vec;
 vector<double> dEdx_err_vec;
+
+vector<double> vec_c_cal;
+vector<double> vec_c_cal_err;
 
 void Write_1D_hist(TH1D *in, TString outname, TString particle, TString latex_str, TString plane, TString title_x, TString title_y, double x_min, double x_max, int rebin, bool do_langau_fit){
 
@@ -147,12 +151,12 @@ void Write_1D_hist(TH1D *in, TString outname, TString particle, TString latex_st
 
 }
 
-void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString plane, TString particle, int rebin_y, double dEdx_low, double dEdx_high, double dEdx_MPV_binning[], int num_NbinsX, int rebin_dqdx[]){
+void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, TString plane, TString particle, int rebin_y, double dEdx_low, double dEdx_high, double dEdx_MPV_binning[], int num_NbinsX, int rebin_dqdx[]){
 
   //const Int_t num_NbinsX = sizeof(dEdx_MPV_binning) / sizeof(dEdx_MPV_binning[0]) - 1;
   
   TString this_id = "id";
-  TString histname = "dEdx_MPV_vs_corr_dqdx_" + plane + "_trklen_60cm_passing_cathode_coszx";
+  TString histname = "dEdx_MPV_vs_corr_dqdx_" + plane + "_trklen_60cm_passing_cathode_coszx" + suffix;
   
   TString input_file_dir = getenv("OUTPUTROOT_PATH");
   TFile *f = new TFile(input_file_dir + "/" + input_file_name);
@@ -189,8 +193,8 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString plane, TString 
 
     TString dEdx_str  = Form("dEdx_MPV_%.2fto%.2f_MeVcm", this_dEdx_MPV_low, this_dEdx_MPV_high);
     TString dEdx_latex_str = Form("dE/dx MPV %.2f to %.2f MeV/cm", this_dEdx_MPV_low, this_dEdx_MPV_high); 
-    TString this_1D_X_hist_name = "dEdx_MPV_" + dEdx_str;
-    TString this_1D_Y_hist_name = "dQdx_" + dEdx_str;
+    TString this_1D_X_hist_name = "dEdx_MPV_" + dEdx_str + suffix;
+    TString this_1D_Y_hist_name = "dQdx_" + dEdx_str + suffix;
 
     TH1D * this_1D_X = new TH1D(this_1D_X_hist_name, this_1D_X_hist_name, x_index_high - x_index_low, this_dEdx_MPV_low, this_dEdx_MPV_high);
     TH1D * this_1D_Y = new TH1D(this_1D_Y_hist_name, this_1D_Y_hist_name, N_binsY, 0., dqdx_max);
@@ -282,6 +286,9 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString plane, TString 
   l -> AddEntry(f_mod_box, Form("#alpha = %.2f #pm %.3f",f_mod_box -> GetParameter(2), f_mod_box -> GetParError(2)), "");
   l -> Draw("same");
 
+  vec_c_cal.push_back(f_mod_box -> GetParameter(0));
+  vec_c_cal_err.push_back(f_mod_box -> GetParError(0));
+  
   TString particle_label_str = "";
   if(particle == "muon") particle_label_str = "Cathode Passing Stopping Tracks";
   if(particle == "proton") particle_label_str = "Stopping Proton Candidates";
@@ -296,8 +303,8 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString plane, TString 
   latex_method.DrawLatex(0.90, 0.96, particle_label_str);
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  TString outfile_str = output_plot_dir + "/MC/" + "/recom_fit/2D/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + ".pdf";
-  if(isdata) outfile_str = output_plot_dir + "/Run" + run_str + "/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + ".pdf";
+  TString outfile_str = output_plot_dir + "/MC/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
+  if(isdata) outfile_str = output_plot_dir + "/Run" + run_str + "/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
   c -> SaveAs(outfile_str);
   
   c -> Close();
@@ -333,7 +340,211 @@ void run_calib_const_fit(int run_num = 0){
 			     4, 4, 4, 4, 4,
 			     4, 4, 4, 4, 4};
 
-  Fit_dEdx_MPV_vs_dqdx_plots("output_recom_" + run_str + ".root", "plane0", "muon", 5, 1.5, 2.0, dEdx_MPV_binning_muon, 8, rebin_dqdx_muon);
-  Fit_dEdx_MPV_vs_dqdx_plots("output_recom_" + run_str + ".root", "plane1", "muon", 5, 1.5, 2.0, dEdx_MPV_binning_muon, 8, rebin_dqdx_muon);
-  Fit_dEdx_MPV_vs_dqdx_plots("output_recom_" + run_str + ".root", "plane2", "muon", 5, 1.5, 2.0, dEdx_MPV_binning_muon, 8, rebin_dqdx_muon);
+  TString filename = "output_recom_" + run_str + ".root";
+  if(!isdata){
+    filename = "output_recom_2023B_GENIE_CV.root";
+    run_str = "MC";
+  }
+
+  TString suffixes[] = {"", "_cafv", "_NE", "_NW", "_SE", "_SW", "_meddqdx"};
+
+  for(int i = 0; i < 7; i++){
+    TString this_suffix = suffixes[i];
+    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, "plane0", "muon", 5, 1.5, 2.0, dEdx_MPV_binning_muon, 8, rebin_dqdx_muon);
+    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, "plane1", "muon", 5, 1.5, 2.0, dEdx_MPV_binning_muon, 8, rebin_dqdx_muon);
+    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, "plane2", "muon", 5, 1.5, 2.0, dEdx_MPV_binning_muon, 8, rebin_dqdx_muon);
+  }
+
+  vector<double> plane0_vec;
+  vector<double> plane1_vec;
+  vector<double> plane2_vec;
+  vector<double> plane0_err_vec;
+  vector<double> plane1_err_vec;
+  vector<double> plane2_err_vec;
+  vector<double> y;
+  vector<double> y_err;
+  for(int i = 0; i < 7; i++){
+    plane0_vec.push_back(vec_c_cal.at(3 * i));
+    plane1_vec.push_back(vec_c_cal.at(3 * i + 1));
+    plane2_vec.push_back(vec_c_cal.at(3 * i + 2));
+    plane0_err_vec.push_back(vec_c_cal_err.at(3 * i));
+    plane1_err_vec.push_back(vec_c_cal_err.at(3 * i + 1));
+    plane2_err_vec.push_back(vec_c_cal_err.at(3 * i + 2));
+    y.push_back(i + 1.);
+    y_err.push_back(0.);
+  }
+
+  TGraphErrors *gr_plane0 = new TGraphErrors(7, &plane0_vec[0], &y[0], &plane0_err_vec[0], &y_err[0]);
+  TGraphErrors *gr_plane1 = new TGraphErrors(7, &plane1_vec[0], &y[0], &plane1_err_vec[0], &y_err[0]);
+  TGraphErrors *gr_plane2 = new TGraphErrors(7, &plane2_vec[0], &y[0], &plane2_err_vec[0], &y_err[0]);
+
+  gr_plane0 -> SetLineWidth(2);
+  gr_plane1 -> SetLineWidth(2);
+  gr_plane2 -> SetLineWidth(2);
+  
+  gStyle->SetLineWidth(2);
+  TCanvas *c = new TCanvas("", "", 800, 600);
+  canvas_margin(c);
+  gStyle -> SetOptStat(1111);
+  c -> cd();
+
+  vector<TString> y_labels = {"Central", "CA-FV", "NE", "NW", "SE", "SW", "Med. dQ/dx"};
+  double latex_y_min = 0.22;
+  double latex_y_width = 0.105;
+  TLatex this_latex;
+  this_latex.SetNDC();
+  this_latex.SetTextAlign(31);
+  this_latex.SetTextSize(0.025);
+
+  for(int i = 0; i < 7; i++){
+    cout << latex_y_min + (i + 0.) * latex_y_width << endl;
+    this_latex.DrawLatex(0.10, latex_y_min + (i + 0.) * latex_y_width, y_labels[i]);
+  }
+
+  TPad *pad1 = new TPad("", "", 0.12, 0., 0.40, 1.);
+  canvas_margin(pad1);
+  pad1 -> Draw();
+  pad1 -> cd();
+  double max_ccal = *std::max_element(plane0_vec.begin(), plane0_vec.end());
+  double min_ccal = *std::min_element(plane0_vec.begin(), plane0_vec.end());
+  double max_ccal_err = *std::max_element(plane0_err_vec.begin(), plane0_err_vec.end());
+  double x_min = plane0_vec.at(0) - plane0_vec.at(0) * 0.015;
+  double x_max = plane0_vec.at(0) + plane0_vec.at(0) * 0.015;
+  TH1D * temp_h_pad1 = new TH1D("", "", 1., x_min, x_max);
+  /*
+  vector<TString> y_labels = {"Central", "CA-FV", "NE", "NW", "SE", "SW", "Median dQ/dx"};
+  for (size_t i = 0; i < y_labels.size(); ++i) {
+    temp_h_pad1->GetYaxis()->SetBinLabel(i + 1, y_labels.at(i));
+  }
+  */
+  temp_h_pad1 -> SetStats(0);
+  temp_h_pad1 -> GetXaxis() -> SetTitle("Plane 0 C_{cal.} #times 10^{-2}");
+  temp_h_pad1 -> GetXaxis() -> CenterTitle();
+  temp_h_pad1 -> GetXaxis() -> SetTitleSize(0.07);
+  temp_h_pad1 -> GetXaxis() -> SetTitleOffset(0.7);
+  temp_h_pad1 -> GetXaxis() -> SetLabelSize(0.035);
+  temp_h_pad1 -> GetYaxis() -> SetTitle("");
+  temp_h_pad1 -> GetYaxis() -> SetTitleSize(0.05);
+  temp_h_pad1 -> GetYaxis() -> SetLabelSize(0.035);
+  temp_h_pad1 -> GetYaxis() -> SetRangeUser(0., 8.);
+  temp_h_pad1 -> Draw();
+  
+  TText *label1 = new TText(-0.5, 1, "central");
+  TText *label2 = new TText(-0.5, 2, "CA-FV");
+
+  label1->SetTextAlign(22);
+  label2->SetTextAlign(22);
+  label1->Draw();
+  label2->Draw();
+
+  TBox * box_1p_pad1 = new TBox(plane0_vec.at(0) - plane0_vec.at(0) * 0.01, 0., plane0_vec.at(0) + plane0_vec.at(0) * 0.01, 8);
+  box_1p_pad1 -> SetFillColor(kOrange);
+  box_1p_pad1 -> Draw("same");
+  
+  TBox * box_pad1 = new TBox(plane0_vec.at(0) - plane0_err_vec.at(0), 0., plane0_vec.at(0) + plane0_err_vec.at(0), 8);
+  box_pad1 -> SetFillColor(kGreen);
+  box_pad1 -> Draw("same");
+  
+  gr_plane0 -> Draw("ezpsame");
+  pad1 -> RedrawAxis();
+
+  c -> cd();
+  TPad *pad2 = new TPad("", "", 0.40, 0., 0.68, 1.);
+  canvas_margin(pad2);
+  pad2 -> Draw();
+  pad2 -> cd();
+  
+  max_ccal = *std::max_element(plane1_vec.begin(), plane1_vec.end());
+  min_ccal = *std::min_element(plane1_vec.begin(), plane1_vec.end());
+  max_ccal_err = *std::max_element(plane1_err_vec.begin(), plane1_err_vec.end());
+  x_min = plane1_vec.at(0) - plane1_vec.at(0) * 0.015;
+  x_max = plane1_vec.at(0) + plane1_vec.at(0) * 0.015;
+  TH1D * temp_h_pad2 = new TH1D("", "", 1., x_min, x_max);
+  temp_h_pad2 -> SetStats(0);
+  temp_h_pad2 -> GetXaxis() -> SetTitle("Plane 1 C_{cal.} #times 10^{-2}");
+  temp_h_pad2 -> GetXaxis() -> CenterTitle();
+  temp_h_pad2 -> GetXaxis() -> SetTitleSize(0.07);
+  temp_h_pad2 -> GetXaxis() -> SetTitleOffset(0.7);
+  temp_h_pad2 -> GetXaxis() -> SetLabelSize(0.035);
+  temp_h_pad2 -> GetYaxis() -> SetTitle("");
+  temp_h_pad2 -> GetYaxis() -> SetLabelSize(0);
+  temp_h_pad2 -> GetYaxis() -> SetRangeUser(0., 8.);
+  temp_h_pad2 -> Draw();
+
+  TBox * box_1p_pad2 = new TBox(plane1_vec.at(0) - plane1_vec.at(0) * 0.01, 0., plane1_vec.at(0) + plane1_vec.at(0) * 0.01, 8);
+  box_1p_pad2 -> SetFillColor(kOrange);
+  box_1p_pad2 -> Draw("same");
+
+  TBox * box_pad2 = new TBox(plane1_vec.at(0) - plane1_err_vec.at(0), 0., plane1_vec.at(0) + plane1_err_vec.at(0), 8);
+  box_pad2 -> SetFillColor(kGreen);
+  box_pad2 -> Draw("same");
+
+  gr_plane1 -> Draw("ezpsame");
+
+  pad2 -> RedrawAxis();
+  
+  c -> cd();
+  TPad *pad3 = new TPad("", "", 0.68, 0., 0.94, 1.);
+  canvas_margin(pad3);
+  pad3 -> Draw();
+  pad3 -> cd();
+
+  max_ccal = *std::max_element(plane2_vec.begin(), plane2_vec.end());
+  min_ccal = *std::min_element(plane2_vec.begin(), plane2_vec.end());
+  max_ccal_err = *std::max_element(plane2_err_vec.begin(), plane2_err_vec.end());
+  x_min = plane2_vec.at(0) - plane2_vec.at(0) * 0.015;
+  x_max = plane2_vec.at(0) + plane2_vec.at(0) * 0.015;
+  TH1D * temp_h_pad3 = new TH1D("", "", 1., x_min, x_max);
+  temp_h_pad3 -> SetStats(0);
+  temp_h_pad3 -> GetXaxis() -> SetTitle("Plane 2 C_{cal.} #times 10^{-2}");
+  temp_h_pad3 -> GetXaxis() -> CenterTitle();
+  temp_h_pad3 -> GetXaxis() -> SetTitleSize(0.07);
+  temp_h_pad3 -> GetXaxis() -> SetTitleOffset(0.7);
+  temp_h_pad3 -> GetXaxis() -> SetLabelSize(0.035);
+  temp_h_pad3 -> GetYaxis() -> SetTitle("");
+  temp_h_pad3 -> GetYaxis() -> SetLabelSize(0);
+  temp_h_pad3 -> GetYaxis() -> SetRangeUser(0., 8.);
+  temp_h_pad3 -> Draw();
+
+  TBox * box_1p_pad3 = new TBox(plane2_vec.at(0) - plane2_vec.at(0) * 0.01, 0., plane2_vec.at(0) + plane2_vec.at(0) * 0.01, 8);
+  box_1p_pad3 -> SetFillColor(kOrange);
+  box_1p_pad3 -> Draw("same");
+  
+  TBox * box_pad3 = new TBox(plane2_vec.at(0) - plane2_err_vec.at(0), 0., plane2_vec.at(0) + plane2_err_vec.at(0), 8);
+  box_pad3 -> SetFillColor(kGreen);
+  box_pad3 -> Draw("same");
+
+  gr_plane2 -> Draw("ezpsame");
+
+  pad3 -> RedrawAxis();
+
+  c -> cd();
+
+  TLegend *l = new TLegend(0.01, 0.88, 0.11, 0.99);
+  l -> AddEntry(box_pad3, "Central #pm stat.", "f");
+  l -> AddEntry(box_1p_pad3, "Central #pm 1%", "f");
+  l -> Draw("same");
+
+  TString particle_label_str = "";
+  particle_label_str = "Cathode Passing Stopping Tracks";
+  TLatex latex_SBND, latex_method;
+  latex_SBND.SetNDC();
+  latex_method.SetNDC();
+  latex_method.SetTextAlign(31);
+  latex_SBND.SetTextSize(0.03);
+  latex_method.SetTextSize(0.03);
+  if(isdata) latex_SBND.DrawLatex(0.12, 0.96, "#font[62]{SBND Data} Run " + run_str + " #font[42]{#it{#scale[1.0]{Preliminary}}}");
+  else latex_SBND.DrawLatex(0.12, 0.96, "#font[62]{SBND Simulation} #font[42]{#it{#scale[1.0]{Preliminary}}}");
+  latex_method.DrawLatex(0.93, 0.96, particle_label_str);
+
+  TString output_plot_dir = getenv("PLOT_PATH");
+  TString outfile_str = output_plot_dir + "/MC/c_cal_comp.pdf";
+  if(isdata) outfile_str = output_plot_dir + "/Run" + run_str + "/c_cal_comp.pdf";
+  c -> SaveAs(outfile_str);
+
+  cout << "category\tplane0\tplane1\tplane2" << endl;
+  for(int i = 0; i < 7; i++){
+    cout << y_labels[i] << "\t" << plane0_vec.at(i) << "\t" << plane1_vec.at(i) << "\t" << plane2_vec.at(i) << endl;
+    this_latex.DrawLatex(0.10, latex_y_min + (i + 0.) * latex_y_width, y_labels[i]);
+  }
 }

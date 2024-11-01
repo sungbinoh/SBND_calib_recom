@@ -18,6 +18,8 @@ vector<double> MPV_err_vec;
 vector<double> dEdx_vec;
 vector<double> dEdx_err_vec;
 
+TString run_str = "Run14480";
+
 void Write_1D_hist(TH1D *in, TString outname, TString particle, TString latex_str, TString title_x, TString title_y, double x_min, double x_max, int rebin, bool do_langau_fit){
 
   TCanvas *c = new TCanvas("", "", 800, 600);
@@ -136,7 +138,7 @@ void Write_1D_hist(TH1D *in, TString outname, TString particle, TString latex_st
   latex_method.DrawLatex(0.18, 0.87, latex_str);
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  c -> SaveAs(output_plot_dir + outname + ".pdf");
+  c -> SaveAs(output_plot_dir + "/" + run_str + "/" + outname + ".pdf");
   c -> Close();
 
 }
@@ -232,7 +234,7 @@ void Fit_rr_vs_pitch_plots(TString input_file_name, int rebin_x, int rebin_y, do
 
     TString output_plot_dir = getenv("PLOT_PATH");
     output_plot_dir = output_plot_dir + "/recom_fit/1D/pitch/";
-    c -> SaveAs(output_plot_dir + this_hist_name + ".pdf");
+    c -> SaveAs(output_plot_dir + "/" + run_str + "/" + this_hist_name + ".pdf");
 
     c -> Close();
 
@@ -379,7 +381,7 @@ void Fit_rr_vs_dqdx_plots(TString input_file_name, int rebin_x, int rebin_y, dou
 
     TString output_plot_dir = getenv("PLOT_PATH");
     output_plot_dir = output_plot_dir + "/recom_fit/1D/dqdx/";
-    c -> SaveAs(output_plot_dir + this_hist_name + ".pdf");
+    c -> SaveAs(output_plot_dir + "/" + run_str + "/" + this_hist_name + ".pdf");
 
     c -> Close();
 
@@ -522,7 +524,7 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString histname, TStri
   l -> Draw("same");
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  output_plot_dir = output_plot_dir + "/recom_fit/2D/";
+  output_plot_dir = output_plot_dir + "/" + run_str + "/" + "/recom_fit/2D/";
   c -> SaveAs(output_plot_dir + "dEdx_MPV_vs_corr_dqdx_" + particle + ".pdf");
   
   c -> Close();
@@ -583,7 +585,7 @@ void fit_modified_box(TString id, double x_min, double x_max, double y_min, doub
   l -> Draw("same");
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  output_plot_dir = output_plot_dir + "/recom_fit/2D/";
+  output_plot_dir = output_plot_dir + "/" + run_str + "/" + "/recom_fit/2D/";
   c -> SaveAs(output_plot_dir + "dEdx_MPV_vs_corr_dqdx_combined.pdf");
 }
 
@@ -615,8 +617,8 @@ void run_recom_fit(){
 			     4, 4, 4, 4, 4,
 			     4, 4, 4, 4, 4};
 
-  Fit_dEdx_MPV_vs_dqdx_plots("output_recom_2023B_GENIE_CV.root", "dEdx_MPV_vs_corr_dqdx_trklen_60cm_passing_cathode_coszx", "muon", 5, 1.5, 4.7, dEdx_MPV_binning_muon, 15, rebin_dqdx_muon);
-  Fit_dEdx_MPV_vs_dqdx_plots("output_recom_muscore40.root", "dEdx_MPV_vs_corr_dqdx_proton", "proton", 5, 1.5, 10.0, dEdx_MPV_binning_proton, 20, rebin_dqdx_proton);
+  Fit_dEdx_MPV_vs_dqdx_plots("output_recom_run14480.root", "dEdx_MPV_vs_corr_dqdx_trklen_60cm_passing_cathode_coszx", "muon", 5, 1.5, 4.7, dEdx_MPV_binning_muon, 15, rebin_dqdx_muon);
+  //Fit_dEdx_MPV_vs_dqdx_plots("output_recom_muscore40.root", "dEdx_MPV_vs_corr_dqdx_proton", "proton", 5, 1.5, 10.0, dEdx_MPV_binning_proton, 20, rebin_dqdx_proton);
 
   fit_modified_box("", 1.5, 10.0, 0., 5000.);
 }

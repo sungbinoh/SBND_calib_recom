@@ -6,8 +6,15 @@
 #include "TTreeReaderValue.h"
 #include "mylib.h"
 
-void run_lifetime_loop() {
+void run_lifetime_loop(int run_num = 0) {
 
+  bool isdata = false;
+  TString run_str = "";
+  if(run_num != 0){
+    isdata = true;
+    run_str = TString::Format("%d", run_num);
+  }
+  
   /////////////////////////////////
   // == Define histograms
   /////////////////////////////////
@@ -25,19 +32,21 @@ void run_lifetime_loop() {
   TH2F *hist_tdrift_vs_dqdx = new TH2F("tdrift_vs_dqdx", "tdrift_vs_dqdx", 150., 0., 1.5, 3000., 0., 3000.);
   TH2F *hist_tdrift_vs_corr_dqdx = new TH2F("tdrift_vs_corr_dqdx", "tdrift_vs_corr_dqdx", 150., 0., 1.5, 3000., 0., 3000.);
 
-
   /////////////////////////////////
   // == Call Trees
   /////////////////////////////////
   // Open the file containing the tree
   TChain *fChain = new TChain("caloskim/TrackCaloSkim");
   TString input_file_dir = getenv("DATA_PATH");
-  TString fileListPath = input_file_dir + "/sample_list/list_MCP2023B_corsika_1Dsim_1Dreco.txt";
+  TString fileListPath = input_file_dir + "/sample_list/list_run_" + run_str + "_local.txt";
   AddFilesToChain(fileListPath, fChain);
 
   TTreeReader myReader(fChain);
 
   // == Variables
+  TTreeReaderValue<int> run(myReader, "trk.meta.run");
+  TTreeReaderValue<int> evt(myReader, "trk.meta.evt");
+
   TTreeReaderValue<int> selected(myReader, "trk.selected");
   TTreeReaderArray<float> dqdx(myReader, "trk.hits2.dqdx"); // hits on plane 2 (Collection)
   TTreeReaderArray<float> rr(myReader, "trk.hits2.rr");
@@ -78,6 +87,10 @@ void run_lifetime_loop() {
       cout << current_entry << " / " << N_entries << endl;
     }
     current_entry++;
+
+    if(*run == 14480){
+      if(*evt >= 749) continue;
+    }
 
     hist_selected -> Fill(*selected);
 
@@ -128,7 +141,13 @@ void run_lifetime_loop() {
       // == No angular cut
       for (unsigned i = 0; i < dqdx.GetSize(); i++) {
 	if(rr[i] < 0.) continue;
-
+	
+	FillHist("x_vs_y_acx", first_x, first_y, 1., 5000., -250., 250., 5000., -250., 250.);
+	FillHist("x_vs_y_acx", last_x, last_y, 1., 5000., -250., 250., 5000., -250., 250.);
+	
+	FillHist("x_vs_z_acx", first_x, first_z, 1., 5000., -250., 250., 5000., -50., 550.);
+	FillHist("x_vs_z_acx", last_x, last_z, 1., 5000., -250., 250., 5000., -50., 550.);
+	
 	FillHist("x_vs_y_trk_len", sp_x[i], sp_y[i], 1., 500., -250., 250., 500., -250., 250.);
         FillHist("x_vs_z_trk_len", sp_x[i], sp_z[i], 1., 500., -250., 250., 600., -50., 550.);
 
@@ -175,7 +194,7 @@ void run_lifetime_loop() {
   }
 
   TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
-  out_rootfile = new TFile(output_rootfile_dir + "/output_lifetime.root", "RECREATE");
+  out_rootfile = new TFile(output_rootfile_dir + "/output_lifetime_" + run_str + ".root", "RECREATE");
   out_rootfile -> cd();
   
   hist_selected -> Write();

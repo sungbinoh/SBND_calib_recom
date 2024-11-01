@@ -1,6 +1,8 @@
-source /cvmfs/larsoft.opensciencegrid.org/products/setup
-source /cvmfs/sbn.opensciencegrid.org/products/sbn/setup
-setup sbncode v09_75_03_02 -q e20:prof
+if [[ `hostname` == *"gpvm"* ]]
+then
+    source /cvmfs/larsoft.opensciencegrid.org/spack-packages/setup-env.sh
+    spack load root@6.28.12
+fi
 
 export CALIB_WORKING_DIR=`pwd`
 export DATA_PATH=$CALIB_WORKING_DIR/data/

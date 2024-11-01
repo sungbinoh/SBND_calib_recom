@@ -85,7 +85,8 @@ double Lifetime_Correction(double x, double tau){
   double this_tdrift = (200. - fabs(x)) / v_drift;
   out = 1. / exp(-1. * this_tdrift / tau);
 
-  return out;
+  //return out;
+  return 1.; // FIXME : return 1 only for data
 }
 
 // == HL parameters

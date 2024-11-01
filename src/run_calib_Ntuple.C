@@ -14,12 +14,15 @@ void run_calib_Ntuple() {
   // Open the file containing the tree.
   TChain *fChain = new TChain("caloskim/TrackCaloSkim");
   TString input_file_dir = getenv("DATA_PATH");
-  TString fileListPath = input_file_dir + "/sample_list/list_MCP2023B_corsika_1Dsim_1Dreco.txt";
+  TString fileListPath = input_file_dir + "/sample_list/list_run_14608_local.txt";
   AddFilesToChain(fileListPath, fChain);
 
   TTreeReader myReader(fChain);
 
   // == Variables
+  TTreeReaderValue<int> run(myReader, "trk.meta.run");
+  TTreeReaderValue<int> evt(myReader, "trk.meta.evt");
+
   TTreeReaderValue<int> selected(myReader, "trk.selected");
   TTreeReaderArray<float> dqdx(myReader, "trk.hits2.dqdx"); // hits on plane 2 (Collection)
   TTreeReaderArray<float> rr(myReader, "trk.hits2.rr");
@@ -57,6 +60,13 @@ void run_calib_Ntuple() {
       cout << current_entry << " / " << N_entries << endl;
     }
     current_entry++;
+
+    if(*run == 14480){
+      if(*evt >= 749) continue;
+    }
+    if(*run == 14608){
+      if(*evt >= 9695) continue;
+    }
 
     hist_selected -> Fill(*selected);
     //cout << "selected : " << *selected << endl;
@@ -99,7 +109,7 @@ void run_calib_Ntuple() {
   }
 
   TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
-  out_rootfile = new TFile(output_rootfile_dir + "/output_test.root", "RECREATE");
+  out_rootfile = new TFile(output_rootfile_dir + "/output_test_14608.root", "RECREATE");
   out_rootfile -> cd();
   
   hist_selected -> Write();

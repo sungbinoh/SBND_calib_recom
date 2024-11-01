@@ -160,7 +160,13 @@ void canvas_margin(TCanvas *c1){
   c1->SetBottomMargin( 0.13 );
   c1->SetRightMargin( 0.05 );
   c1->SetLeftMargin( 0.16 );
+}
 
+void canvas_margin(TPad *p1){
+  p1->SetTopMargin( 0.05 );
+  p1->SetBottomMargin( 0.13 );
+  p1->SetRightMargin( 0.025 );
+  p1->SetLeftMargin( 0.0 );
 }
 
 void canvas_margin_limit(TCanvas *c1){

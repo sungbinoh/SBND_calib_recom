@@ -9,6 +9,9 @@
 #include "BetheBloch.h"
 
 TSpline3 * muon_sp_range_to_KE = Get_sp_range_KE(mass_muon);
+double c_cal0 = 0.02;
+double c_cal1 = 0.02;
+double c_cal2 = 0.02;
 
 double zprime_60deg(double y, double z, int pm = 1){
   double cos_60deg = 0.5;
@@ -43,6 +46,18 @@ double Get_EndMediandQdx(const TTreeReaderArray<float>& rr, const TTreeReaderArr
   return med_dqdx;
 }
 
+double Modbox_dedx(double dqdx, double this_c_cal){
+
+  //double c_cal = 0.0195;
+  double alpha = 0.93;
+  double beta = 0.212;
+
+  double dedx = ( exp( (beta * dqdx)/(29449.153 * this_c_cal) ) - alpha) / (1.4388489 * beta);
+
+  //cout << "dqdx : " << dqdx << ", dedx : " << dedx << endl;
+  return dedx;
+}
+
 void Fill_track_plots(TString suffix, double dist_start, double dist_end, const TTreeReaderArray<float>& rr, const TTreeReaderArray<float>& dqdx){
 
   FillHist("dist_start_" + suffix, dist_start, 1., 1000., 0., 1000.);
@@ -52,30 +67,20 @@ void Fill_track_plots(TString suffix, double dist_start, double dist_end, const 
   }
 }
 
-void Fill_hit_plots(TString suffix, const TTreeReaderArray<float>& rr, const TTreeReaderArray<float>& dqdx, const TTreeReaderArray<float>& sp_x, double cos_xy, double cos_yz, double cos_zx, double cos_plus_zprimex, double cos_minus_zprimex){
+void Fill_hit_plots(TString suffix, const TTreeReaderArray<float>& rr, const TTreeReaderArray<float>& dqdx, double cos_xy, double cos_yz, double cos_zx){
 
   for (unsigned i = 0; i < dqdx.GetSize(); i++) {
     FillHist("cos_xy_vs_dqdx_" + suffix, cos_xy, dqdx[i], 1., 220., -1.1, 1.1, 3000., 0., 3000.);
     FillHist("cos_yz_vs_dqdx_" + suffix, cos_yz, dqdx[i], 1., 220., -1.1, 1.1, 3000., 0., 3000.);
     FillHist("cos_zx_vs_dqdx_" + suffix, cos_zx, dqdx[i], 1., 220., -1.1, 1.1, 3000., 0., 3000.);
-    FillHist("cos_plus_zprimex_vs_dqdx_" + suffix, cos_plus_zprimex, dqdx[i], 1., 220., -1.1, 1.1, 3000., 0., 3000.);
-    FillHist("cos_minus_zprimex_vs_dqdx_" + suffix, cos_minus_zprimex, dqdx[i], 1., 220., -1.1, 1.1, 3000., 0., 3000.);
-    if(sp_x[i] < 0.){
-      FillHist("cos_plus_zprimex_vs_dqdx_" + suffix + "_East", cos_plus_zprimex, dqdx[i], 1., 220., -1.1, 1.1, 3000., 0., 3000.);
-      FillHist("cos_minus_zprimex_vs_dqdx_" + suffix + "_East", cos_minus_zprimex, dqdx[i], 1., 220., -1.1, 1.1, 3000., 0., 3000.);
-    }
-    else{
-      FillHist("cos_plus_zprimex_vs_dqdx_" + suffix + "_West", cos_plus_zprimex, dqdx[i], 1., 220., -1.1, 1.1, 3000., 0., 3000.);
-      FillHist("cos_minus_zprimex_vs_dqdx_" + suffix + "_West", cos_minus_zprimex, dqdx[i], 1., 220., -1.1, 1.1, 3000., 0., 3000.);
-    }
   }
 }
 
-void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr, const TTreeReaderArray<float>& dqdx, const TTreeReaderArray<float>& sp_x, const TTreeReaderArray<float>& sp_z, const TTreeReaderArray<float>& pitch, double last_x, double cos_plus_zprimex, double cos_minus_zprimex, bool do_ind_ang_cut = false){
+void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr, const TTreeReaderArray<float>& dqdx, const TTreeReaderArray<float>& sp_x, const TTreeReaderArray<float>& sp_z, const TTreeReaderArray<float>& pitch, double this_c_cal, double last_x, double cos_plus_zprimex, double cos_minus_zprimex, bool do_ind_ang_cut = true){
 
-  //for (unsigned i = 0; i < dqdx.GetSize(); i++) {
   if(dqdx.GetSize() < 1) return;
   for (unsigned i = 1; i < dqdx.GetSize() - 1; i++) {
+  //for (unsigned i = 0; i < dqdx.GetSize(); i++) {
     if(do_ind_ang_cut){
       if(suffix.Contains("plane0")){
         if(sp_x[i] < 0. && fabs(cos_plus_zprimex) > 0.75) continue;
@@ -91,10 +96,7 @@ void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr
     double corrected_dqdx = dqdx[i] * this_lifetime_corr;
     FillHist("rr_vs_corr_dqdx_" + suffix, rr[i], corrected_dqdx, 1., 300., 0., 300., 3000., 0., 3000.);
     FillHist("rr_vs_pitch_" + suffix, rr[i], pitch[i], 1., 300., 0., 300., 200., 0., 2.);
-    FillHist("pitch_" + suffix, pitch[i], 1., 200., 0., 2.);
-    FillHist("pitch_x_vs_corr_dqdx_" + suffix, pitch[i], corrected_dqdx, 1., 200., 0., 2., 3000., 0., 3000.);
-    if(i == 0) FillHist("last_x_" + suffix, last_x, 1., 500., -250., 250.);
-    
+
     double this_KE= muon_sp_range_to_KE -> Eval(rr[i]); // == from rr
 
     double gamma = (this_KE/mass_muon)+1.0;
@@ -108,21 +110,22 @@ void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr
     double this_dEdx_MPV = this_dEdx_PDF -> GetMaximumX();
 
     if(rr[i] < 0.) continue;
-
     FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix, this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
     //cout << "[Fill_corrected_dqdx_plots] " << i << ", rr : " << rr[i] << ", KE : " << muon_sp_range_to_KE -> Eval(rr[i]) << ", this_kappa : " << this_kappa << ", this_dEdx_MPV : " << this_dEdx_MPV << endl;
 
-    // == Divide into NE, NW, SE and SW
+    double this_calib_dedx = Modbox_dedx(corrected_dqdx, this_c_cal);
+    FillHist("rr_vs_dedx_" + suffix, rr[i], this_calib_dedx, 1., 2500., 0., 250., 2000., 0., 20.);
+
     if(sp_x[i] < 0.){
-      if(sp_z[i] > 250.) FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_NE", this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
-      else FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_SE", this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
+      if(sp_z[i] > 250.) FillHist("rr_vs_dedx_" + suffix + "_NE", rr[i], this_calib_dedx, 1., 2500., 0., 250., 2000., 0., 20.);
+      else FillHist("rr_vs_dedx_" + suffix + "_SE", rr[i], this_calib_dedx, 1., 2500., 0., 250., 2000., 0., 20.);
     }
     else{
-      if(sp_z[i] > 250.) FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_NW", this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
-      else FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_SW", this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
+      if(sp_z[i] > 250.) FillHist("rr_vs_dedx_" + suffix + "_NW", rr[i], this_calib_dedx, 1., 2500., 0., 250., 2000., 0., 20.);
+      else FillHist("rr_vs_dedx_" + suffix + "_SW", rr[i], this_calib_dedx, 1., 2500., 0., 250., 2000., 0., 20.);
     }
-    
   }
+
 }
 /*
 double Vav_MPV(float rr){
@@ -134,8 +137,12 @@ double Vav_MPV(float rr){
   double this_dEdx_BB = dEdx.dEdx_Bethe_Bloch(KE, mass);
 }
 */
-void run_recom_loop(int run_num = 0) {
+void run_dedx_loop_syst(int run_num = 0, double this_c_cal0 = 0.02, double this_c_cal1 = 0.02, double this_c_cal2 = 0.02) {
 
+  c_cal0 = this_c_cal0;
+  c_cal1 = this_c_cal1;
+  c_cal2 = this_c_cal2;
+  
   bool isdata = false;
   TString run_str = "";
   if(run_num != 0){
@@ -158,7 +165,6 @@ void run_recom_loop(int run_num = 0) {
   //TString fileListPath = input_file_dir + "/sample_list/list_MCP2023B_corsika_1Dsim_1Dreco.txt";
   TString fileListPath = input_file_dir + "/sample_list/list_run_" + run_str + "_local.txt";
   if(!isdata) fileListPath = input_file_dir + "/sample_list/list_2023B_GENIE_CV_local.txt";
-  cout << "Opening : " << fileListPath << endl;
   AddFilesToChain(fileListPath, fChain);
 
   TTreeReader myReader(fChain);
@@ -166,10 +172,7 @@ void run_recom_loop(int run_num = 0) {
   // == Variables
   TTreeReaderValue<int> run(myReader, "trk.meta.run");
   TTreeReaderValue<int> evt(myReader, "trk.meta.evt");
-  TTreeReaderValue<unsigned long> ts(myReader, "trk.meta.time");
-  TTreeReaderValue<int> trkid(myReader, "trk.id");
-  TTreeReaderValue<float> trklen(myReader, "trk.length");
-  
+
   TTreeReaderValue<int> selected(myReader, "trk.selected");
   TTreeReaderArray<float> dqdx0(myReader, "trk.hits0.dqdx"); // hits on plane 0 (Induction)
   TTreeReaderArray<float> dqdx1(myReader, "trk.hits1.dqdx"); // hits on plane 1 (Induction)
@@ -180,7 +183,7 @@ void run_recom_loop(int run_num = 0) {
   TTreeReaderArray<float> pitch0(myReader, "trk.hits0.pitch");
   TTreeReaderArray<float> pitch1(myReader, "trk.hits1.pitch");
   TTreeReaderArray<float> pitch2(myReader, "trk.hits2.pitch");
-  TTreeReaderArray<float> time0(myReader, "trk.hits0.h.time"); 
+  TTreeReaderArray<float> time0(myReader, "trk.hits0.h.time");
   TTreeReaderArray<float> time1(myReader, "trk.hits1.h.time");
   TTreeReaderArray<float> time2(myReader, "trk.hits2.h.time");
   TTreeReaderArray<float> sp_x0(myReader, "trk.hits0.h.sp.x");
@@ -214,7 +217,7 @@ void run_recom_loop(int run_num = 0) {
   cout << "N_entries : " << N_entries << endl;
   int current_entry = 0;
 
-  int N_run = 4400;
+  int N_run = 300;
   double ADC_med_cut = 1600.; // == https://sbn-docdb.fnal.gov/cgi-bin/sso/RetrieveFile?docid=23472&filename=SBND%20Calib%20Workshop%202021.pdf&version=1
   double track_length_cut = 15.;
   // Loop over all entries of the TTree
@@ -236,11 +239,11 @@ void run_recom_loop(int run_num = 0) {
     hist_selected -> Fill(*selected);
 
     double end_meddqdx = Get_EndMediandQdx(rr2, dqdx2);
-    FillHist("end_meddqdx", end_meddqdx, 1., 5000., 0., 5000.);
-    FillHist(Form("end_meddqdx_selected%d", *selected), end_meddqdx, 1., 5000., 0., 5000.);
+    //cout << "end_meddqdx : " << end_meddqdx << endl;
+    
     // == Tracks selected as stopping
     if (*selected == 0) {
-      
+
       unsigned N_reco_hits = rr2.GetSize();
       TVector3 this_reco_start(sp_x2[N_reco_hits - 1], sp_y2[N_reco_hits - 1], sp_z2[N_reco_hits - 1]);
       TVector3 this_reco_end(sp_x2[0], sp_y2[0], sp_z2[0]);
@@ -313,50 +316,43 @@ void run_recom_loop(int run_num = 0) {
       if(this_reco_trk_len < 30.) continue;
       Fill_track_plots("trklen_30cm", dist_start, dist_end, rr, dqdx);
       */
-
       // == Track length 60 cm cut
       if(this_reco_trk_len < 60. || !passing_cathode) continue;
       Fill_track_plots("plane0_trklen_60cm_passing_cathode", dist_start, dist_end, rr0, dqdx0);
       Fill_track_plots("plane1_trklen_60cm_passing_cathode", dist_start, dist_end, rr1, dqdx1);
       Fill_track_plots("plane2_trklen_60cm_passing_cathode", dist_start, dist_end, rr2, dqdx2);
-      Fill_hit_plots("plane0_trklen_60cm_passing_cathode", rr0, dqdx0, sp_x0, cos_xy, cos_yz, cos_zx, cos_plus_zprimex, cos_minus_zprimex);
-      Fill_hit_plots("plane1_trklen_60cm_passing_cathode", rr1, dqdx1, sp_x1, cos_xy, cos_yz, cos_zx, cos_plus_zprimex, cos_minus_zprimex);
-      Fill_hit_plots("plane2_trklen_60cm_passing_cathode", rr2, dqdx2, sp_x2, cos_xy, cos_yz, cos_zx, cos_plus_zprimex, cos_minus_zprimex);
+      Fill_hit_plots("plane0_trklen_60cm_passing_cathode", rr0, dqdx0, cos_xy, cos_yz, cos_zx);
+      Fill_hit_plots("plane1_trklen_60cm_passing_cathode", rr1, dqdx1, cos_xy, cos_yz, cos_zx);
+      Fill_hit_plots("plane2_trklen_60cm_passing_cathode", rr2, dqdx2, cos_xy, cos_yz, cos_zx);
 
-      Fill_corrected_dqdx_plots("plane2_trklen_60cm_passing_cathode", rr2, dqdx2, sp_x2, sp_z2, pitch2, last_x, cos_plus_zprimex, cos_minus_zprimex, true);
-      if(fabs(cos_zx) < 0.75){
-	Fill_corrected_dqdx_plots("plane2_trklen_60cm_passing_cathode_coszx", rr2, dqdx2, sp_x2, sp_z2, pitch2, last_x, cos_plus_zprimex, cos_minus_zprimex, true);
-      }
-      Fill_corrected_dqdx_plots("plane0_trklen_60cm_passing_cathode", rr0, dqdx0, sp_x0, sp_z0, pitch0, last_x, cos_plus_zprimex, cos_minus_zprimex, false);
-      Fill_corrected_dqdx_plots("plane1_trklen_60cm_passing_cathode", rr1, dqdx1, sp_x1, sp_z1, pitch1, last_x, cos_plus_zprimex, cos_minus_zprimex, false);
-      Fill_corrected_dqdx_plots("plane0_trklen_60cm_passing_cathode_coszx", rr0, dqdx0, sp_x0, sp_z0, pitch0, last_x, cos_plus_zprimex, cos_minus_zprimex, true);
-      Fill_corrected_dqdx_plots("plane1_trklen_60cm_passing_cathode_coszx", rr1, dqdx1, sp_x1, sp_z1, pitch1, last_x, cos_plus_zprimex, cos_minus_zprimex, true);
-      
+      //if(fabs(cos_zx) < 0.75) Fill_track_plots("plane0_trklen_60cm_passing_cathode_coszx", dist_start, dist_end, rr0, dqdx0);
+      //Fill_track_plots("plane1_trklen_60cm_passing_cathode_coszx", dist_start, dist_end, rr1, dqdx1);
+      //Fill_track_plots("plane2_trklen_60cm_passing_cathode_coszx", dist_start, dist_end, rr2, dqdx2);
+
+      Fill_corrected_dqdx_plots("plane0_trklen_60cm_passing_cathode_coszx", rr0, dqdx0, sp_x0, sp_z0, pitch0, c_cal0, last_x, cos_plus_zprimex, cos_minus_zprimex, true);
+      Fill_corrected_dqdx_plots("plane1_trklen_60cm_passing_cathode_coszx", rr1, dqdx1, sp_x1, sp_z1, pitch1, c_cal1, last_x, cos_plus_zprimex, cos_minus_zprimex, true);
+      if(fabs(cos_zx) < 0.75) Fill_corrected_dqdx_plots("plane2_trklen_60cm_passing_cathode_coszx", rr2, dqdx2, sp_x2, sp_z2, pitch2, c_cal2, last_x, cos_plus_zprimex, cos_minus_zprimex, true);
+
       //if(fabs(cos_zx) > 0.75) continue;
-      if(fabs(cos_zx) < 0.75) Fill_track_plots("trklen_60cm_passing_cathode_coszx", dist_start, dist_end, rr2, dqdx2);
-
-      // == end dqdx median cut shift from 1600 to 1800
+      // == end dqdx median cut shift from 1600 to 1800 
       if(end_meddqdx > 1800.){
-	Fill_corrected_dqdx_plots("plane0_trklen_60cm_passing_cathode_coszx_meddqdx", rr0, dqdx0, sp_x0, sp_z0, pitch0, last_x, cos_plus_zprimex, cos_minus_zprimex, true);
-        Fill_corrected_dqdx_plots("plane1_trklen_60cm_passing_cathode_coszx_meddqdx", rr1, dqdx1, sp_x1, sp_z1, pitch1, last_x, cos_plus_zprimex, cos_minus_zprimex, true);
-        if(fabs(cos_zx) < 0.75) Fill_corrected_dqdx_plots("plane2_trklen_60cm_passing_cathode_coszx_meddqdx", rr2, dqdx2, sp_x2, sp_z2, pitch2, last_x, cos_plus_zprimex, cos_minus_zprimex, true);
+        Fill_corrected_dqdx_plots("plane0_trklen_60cm_passing_cathode_coszx_meddqdx", rr0, dqdx0, sp_x0, sp_z0, pitch0, c_cal0, last_x, cos_plus_zprimex, cos_minus_zprimex, true);
+        Fill_corrected_dqdx_plots("plane1_trklen_60cm_passing_cathode_coszx_meddqdx", rr1, dqdx1, sp_x1, sp_z1, pitch1, c_cal1, last_x, cos_plus_zprimex, cos_minus_zprimex, true);
+        if(fabs(cos_zx) < 0.75) Fill_corrected_dqdx_plots("plane2_trklen_60cm_passing_cathode_coszx_meddqdx", rr2, dqdx2, sp_x2, sp_z2, pitch2, c_cal2, last_x, cos_plus_zprimex, cos_minus_zprimex, true);
       }
 
       // == End point away from cathode
       if(fabs(last_x) > 15. && fabs(last_x) < 185.){
-	Fill_corrected_dqdx_plots("plane0_trklen_60cm_passing_cathode_coszx_cafv", rr0, dqdx0, sp_x0, sp_z0, pitch0, last_x, cos_plus_zprimex, cos_minus_zprimex, true);
-	Fill_corrected_dqdx_plots("plane1_trklen_60cm_passing_cathode_coszx_cafv", rr1, dqdx1, sp_x1, sp_z1, pitch1, last_x, cos_plus_zprimex, cos_minus_zprimex, true);
-	if(fabs(cos_zx) < 0.75) Fill_corrected_dqdx_plots("plane2_trklen_60cm_passing_cathode_coszx_cafv", rr2, dqdx2, sp_x2, sp_z2, pitch2, last_x, cos_plus_zprimex, cos_minus_zprimex, true);
-
-	TString evt_id_str = Form("evt%d_id%d", *evt, *trkid);
-	//cout << "evt_id_str : " << evt_id_str << ", length : " << this_reco_trk_len << " cm" << ", trklen : " << *trklen << ", ts : " << *ts << endl;
+        Fill_corrected_dqdx_plots("plane0_trklen_60cm_passing_cathode_coszx_cafv", rr0, dqdx0, sp_x0, sp_z0, pitch0, c_cal0, last_x, cos_plus_zprimex, cos_minus_zprimex, true);
+        Fill_corrected_dqdx_plots("plane1_trklen_60cm_passing_cathode_coszx_cafv", rr1, dqdx1, sp_x1, sp_z1, pitch1, c_cal1, last_x, cos_plus_zprimex, cos_minus_zprimex, true);
+        if(fabs(cos_zx) < 0.75) Fill_corrected_dqdx_plots("plane2_trklen_60cm_passing_cathode_coszx_cafv", rr2, dqdx2, sp_x2, sp_z2, pitch2, c_cal2, last_x, cos_plus_zprimex, cos_minus_zprimex, true);
       }
     }
   }
 
   TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
-  TString output_file_name = output_rootfile_dir + "/output_recom_" + run_str + "_test.root";
-  if(!isdata) output_file_name = output_rootfile_dir + "/output_recom_2023B_GENIE_CV.root";
+  TString output_file_name = output_rootfile_dir + "/output_dedx_" + run_str + "_syst.root";
+  if(!isdata) output_file_name = output_rootfile_dir + "/output_dedx_2023B_GENIE_CV.root";
   out_rootfile = new TFile(output_file_name, "RECREATE");
   out_rootfile -> cd();
   

@@ -88,6 +88,7 @@ void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr
     }
 
     double this_lifetime_corr = Lifetime_Correction(sp_x[i], 10.0);
+    if(isdata) this_lifetime_corr = 1.;
     double corrected_dqdx = dqdx[i] * this_lifetime_corr;
     FillHist("rr_vs_corr_dqdx_" + suffix, rr[i], corrected_dqdx, 1., 300., 0., 300., 3000., 0., 3000.);
     FillHist("rr_vs_pitch_" + suffix, rr[i], pitch[i], 1., 300., 0., 300., 200., 0., 2.);
@@ -356,7 +357,7 @@ void run_recom_loop(int run_num = 0) {
 
   TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
   TString output_file_name = output_rootfile_dir + "/output_recom_" + run_str + "_test.root";
-  if(!isdata) output_file_name = output_rootfile_dir + "/output_recom_2023B_GENIE_CV.root";
+  if(!isdata) output_file_name = output_rootfile_dir + "/output_recom_2024B_GENIE_CV.root";
   out_rootfile = new TFile(output_file_name, "RECREATE");
   out_rootfile -> cd();
   

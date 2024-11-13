@@ -85,8 +85,8 @@ double Lifetime_Correction(double x, double tau){
   double this_tdrift = (200. - fabs(x)) / v_drift;
   out = 1. / exp(-1. * this_tdrift / tau);
 
-  //return out;
-  return 1.; // FIXME : return 1 only for data
+  return out;
+  //return 1.; // FIXME : return 1 only for data
 }
 
 // == HL parameters
@@ -105,6 +105,37 @@ double MCS_Get_HL_Sigma(double segment_size, double P, double mass){
 }
 
 vector<double> vx, vy, vexl, vexh, veyl, veyh;
+
+double Get_Mean_in_range(TH1D *hist, double x_min, double x_max){
+
+  int bin_min = hist -> FindBin(x_min);
+  int bin_max = hist -> FindBin(x_max);
+  double numer = 0.;
+  double denom = 0.;
+  for(int i = bin_min; i < bin_max; i++){
+    denom = denom + hist -> GetBinContent(i);
+    numer = numer + hist -> GetXaxis() -> GetBinCenter(i) * hist -> GetBinContent(i);
+  }
+
+  return numer / denom;
+}
+
+double Get_Mean_Err_in_range(TH1D *hist, double x_min, double x_max){
+
+  int bin_min = hist -> FindBin(x_min);
+  int bin_max =	hist -> FindBin(x_max);
+  double numer = 0.;
+  double denom = 0.;
+  double mean = Get_Mean_in_range(hist, x_min, x_max);
+  for(int i = bin_min; i < bin_max; i++){
+    denom = denom + hist -> GetBinContent(i);
+    numer = numer + pow(hist -> GetXaxis() -> GetBinCenter(i) - mean, 2.) * hist -> GetBinContent(i);
+  }
+
+  return sqrt(numer / (denom - 1.)) / sqrt(denom);
+}
+
+
 
 TH1D * GetHist(TString hname){
 

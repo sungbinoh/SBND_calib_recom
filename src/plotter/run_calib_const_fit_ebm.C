@@ -7,7 +7,7 @@
 
 bool isdata = false;
 TString run_str = "";
-TString suffix = "";
+//TString suffix = "";
 
 TRandom3 gRan(1800);
 map<TString, vector<double>> fitting_results;
@@ -25,7 +25,18 @@ vector<double> dEdx_err_vec;
 vector<double> vec_c_cal;
 vector<double> vec_c_cal_err;
 
-void Write_1D_hist(TH1D *in, TString outname, TString particle, TString latex_str, TString plane, TString title_x, TString title_y, double x_min, double x_max, int rebin, bool do_langau_fit){
+// == EBM par
+double alpha_ebm = 0.904;
+double beta_90 = 0.204;
+double R_ebm = 1.25;
+
+double B_phi(double phi = 90.){
+  double phi_rad = phi * TMath::Pi() / 180.;
+  double out = beta_90 / (sqrt(pow(sin(phi_rad), 2.) + pow(cos(phi_rad) / R_ebm, 2.)));
+  return out;
+}
+
+void Write_1D_hist(TH1D *in, TString outname, TString suffix, TString particle, TString latex_str, TString plane, TString title_x, TString title_y, double x_min, double x_max, int rebin, bool do_langau_fit){
 
   TCanvas *c = new TCanvas("", "", 800, 600);
   canvas_margin(c);
@@ -102,8 +113,8 @@ void Write_1D_hist(TH1D *in, TString outname, TString particle, TString latex_st
     l -> AddEntry(in, Form("#chi^{2} / ndf : %.2f", chisqr / ndf), "");
     l -> Draw("same");
 
-    MPV_vec_map[particle+plane].push_back(this_MPV);
-    MPV_err_vec_map[particle+plane].push_back(this_MPV_err);
+    MPV_vec_map[particle+plane+suffix].push_back(this_MPV);
+    MPV_err_vec_map[particle+plane+suffix].push_back(this_MPV_err);
     MPV_vec.push_back(this_MPV);
     MPV_err_vec.push_back(this_MPV_err);
   }
@@ -117,8 +128,8 @@ void Write_1D_hist(TH1D *in, TString outname, TString particle, TString latex_st
     l -> AddEntry(in, Form("StdDev : %.2f", this_stddev), "");
     l -> Draw("same");
   
-    dEdx_vec_map[particle+plane].push_back(this_mean);
-    dEdx_err_vec_map[particle+plane].push_back(this_stddev);
+    dEdx_vec_map[particle+plane+suffix].push_back(this_mean);
+    dEdx_err_vec_map[particle+plane+suffix].push_back(this_stddev);
     dEdx_vec.push_back(this_mean);
     dEdx_err_vec.push_back(this_stddev);
   }
@@ -151,7 +162,7 @@ void Write_1D_hist(TH1D *in, TString outname, TString particle, TString latex_st
 
 }
 
-void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, TString plane, TString particle, int rebin_y, double dEdx_low, double dEdx_high, double dEdx_MPV_binning[], int num_NbinsX, int rebin_dqdx[]){
+void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, double phi, TString plane, TString particle, int rebin_y, double dEdx_low, double dEdx_high, double dEdx_MPV_binning[], int num_NbinsX, int rebin_dqdx[]){
 
   //const Int_t num_NbinsX = sizeof(dEdx_MPV_binning) / sizeof(dEdx_MPV_binning[0]) - 1;
   
@@ -224,8 +235,8 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, TString
       
     }
 
-    Write_1D_hist(this_1D_X, "/" + plane + "_" + this_1D_X_hist_name, particle, dEdx_latex_str, plane, "dE/dx MPV [MeV/cm]", "Events", this_dEdx_MPV_low, this_dEdx_MPV_high, 1., false);
-    Write_1D_hist(this_1D_Y, "/" + plane + "_" + this_1D_Y_hist_name, particle, dEdx_latex_str, plane, "dQ/dx [ADC/cm]", "Events", 0., 5000., rebin_dqdx[i - 1], true);
+    Write_1D_hist(this_1D_X, "/" + plane + "_" + this_1D_X_hist_name, suffix, particle, dEdx_latex_str, plane, "dE/dx MPV [MeV/cm]", "Events", this_dEdx_MPV_low, this_dEdx_MPV_high, 1., false);
+    Write_1D_hist(this_1D_Y, "/" + plane + "_" + this_1D_Y_hist_name, suffix, particle, dEdx_latex_str, plane, "dQ/dx [ADC/cm]", "Events", 0., 5000., rebin_dqdx[i - 1], true);
   }
 
   TCanvas *c = new TCanvas("", "", 800, 600);
@@ -249,7 +260,7 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, TString
 
   hist_2D -> Draw("colzsame");
   
-  TGraphErrors * this_gr = new TGraphErrors(MPV_vec_map[particle+plane].size(), &dEdx_vec_map[particle+plane][0], &MPV_vec_map[particle+plane][0], &dEdx_err_vec_map[particle+plane][0], &MPV_err_vec_map[particle+plane][0]);
+  TGraphErrors * this_gr = new TGraphErrors(MPV_vec_map[particle+plane+suffix].size(), &dEdx_vec_map[particle+plane+suffix][0], &MPV_vec_map[particle+plane+suffix][0], &dEdx_err_vec_map[particle+plane+suffix][0], &MPV_err_vec_map[particle+plane+suffix][0]);
   //this_gr -> SetLineColor(kRed);
   this_gr -> SetLineColor(kBlack);
   this_gr -> SetLineWidth(2);
@@ -259,16 +270,17 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, TString
   this_gr -> SetMarkerSize(0.8);
   this_gr -> Draw("ezpsame");
 
-  for(unsigned int i = 0; i < MPV_vec_map[particle+plane].size(); i++){
-    cout << i << ", MPV_vec_map[particle] " << plane << " : " << MPV_vec_map[particle+plane].at(i) << ", dEdx_vec : " << dEdx_vec_map[particle+plane].at(i) << endl;
+  for(unsigned int i = 0; i < MPV_vec_map[particle+plane+suffix].size(); i++){
+    cout << i << ", MPV_vec_map[particle] " << plane << " : " << MPV_vec_map[particle+plane+suffix].at(i) << ", dEdx_vec : " << dEdx_vec_map[particle+plane+suffix].at(i) << endl;
   }
 
   double fit_x_max = 2.0;
   if(particle == "proton") fit_x_max = 9.0;  
   TF1 * f_mod_box = new TF1("f_mod_box", "(294.49153 * [0] / [1]) * log(1.4388489 * [1] * x + [2])", 1.6, fit_x_max);
-  f_mod_box -> SetParameters(2.00, 0.212, 0.93);
-  f_mod_box -> FixParameter(1, 0.212);
-  f_mod_box -> FixParameter(2, 0.93);
+  double this_B_phi = B_phi(phi);
+  f_mod_box -> SetParameters(2.00, this_B_phi, alpha_ebm);
+  f_mod_box -> FixParameter(1, this_B_phi);
+  f_mod_box -> FixParameter(2, alpha_ebm);
   //f_mod_box -> SetLineColor(kBlack);
   f_mod_box -> SetLineColor(kRed);
   f_mod_box -> SetLineWidth(3);
@@ -282,7 +294,7 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, TString
   l -> AddEntry(this_gr, "Data points", "lp");
   l -> AddEntry(f_mod_box, "Fitting result", "l");
   l -> AddEntry(f_mod_box, Form("C_{cal.} = %.3f #pm %.3f #times 10^{-2} [ADC/electrons]", f_mod_box -> GetParameter(0), f_mod_box -> GetParError(0)), "");
-  l -> AddEntry(f_mod_box, Form("#beta' = %.3f #pm %.3f [(kV/cm)(g/cm^{2})/MeV]", f_mod_box -> GetParameter(1), f_mod_box -> GetParError(1)), "");
+  l -> AddEntry(f_mod_box, Form("#beta' = %.3f #pm %.3f [(kV/cm)(g/cm^{3})/MeV]", f_mod_box -> GetParameter(1), f_mod_box -> GetParError(1)), "");
   l -> AddEntry(f_mod_box, Form("#alpha = %.2f #pm %.3f",f_mod_box -> GetParameter(2), f_mod_box -> GetParError(2)), "");
   l -> Draw("same");
 
@@ -311,7 +323,7 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, TString
 
 }
 
-void run_calib_const_fit(int run_num = 0){
+void run_calib_const_fit_ebm(int run_num = 0){
 
   if(run_num != 0){
     isdata = true;
@@ -346,13 +358,13 @@ void run_calib_const_fit(int run_num = 0){
     run_str = "MC";
   }
 
-  TString suffixes[] = {"", "_cafv", "_NE", "_NW", "_SE", "_SW", "_meddqdx"};
-
+  TString suffixes[] = {"", "_phi40to50", "_phi50to60", "_phi60to70", "_phi70to80", "_phi80to85", "_phi85to90"};
+  double phis[] = {65., 45., 55., 65., 75., 82.5, 87.5};
   for(int i = 0; i < 7; i++){
     TString this_suffix = suffixes[i];
-    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, "plane0", "muon", 5, 1.5, 2.0, dEdx_MPV_binning_muon, 8, rebin_dqdx_muon);
-    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, "plane1", "muon", 5, 1.5, 2.0, dEdx_MPV_binning_muon, 8, rebin_dqdx_muon);
-    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, "plane2", "muon", 5, 1.5, 2.0, dEdx_MPV_binning_muon, 8, rebin_dqdx_muon);
+    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, phis[i], "plane0", "muon", 5, 1.5, 2.0, dEdx_MPV_binning_muon, 8, rebin_dqdx_muon);
+    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, phis[i], "plane1", "muon", 5, 1.5, 2.0, dEdx_MPV_binning_muon, 8, rebin_dqdx_muon);
+    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, phis[i], "plane2", "muon", 5, 1.5, 2.0, dEdx_MPV_binning_muon, 8, rebin_dqdx_muon);
   }
 
   vector<double> plane0_vec;
@@ -374,6 +386,8 @@ void run_calib_const_fit(int run_num = 0){
     y_err.push_back(0.);
   }
 
+  double mc_modbox_ccals[] = {2.076, 2.067, 2.045};
+
   TGraphErrors *gr_plane0 = new TGraphErrors(7, &plane0_vec[0], &y[0], &plane0_err_vec[0], &y_err[0]);
   TGraphErrors *gr_plane1 = new TGraphErrors(7, &plane1_vec[0], &y[0], &plane1_err_vec[0], &y_err[0]);
   TGraphErrors *gr_plane2 = new TGraphErrors(7, &plane2_vec[0], &y[0], &plane2_err_vec[0], &y_err[0]);
@@ -388,7 +402,8 @@ void run_calib_const_fit(int run_num = 0){
   gStyle -> SetOptStat(1111);
   c -> cd();
 
-  vector<TString> y_labels = {"Central", "CA-FV", "NE", "NW", "SE", "SW", "Med. dQ/dx"};
+  //vector<TString> y_labels = {"Central", "CA-FV", "NE", "NW", "SE", "SW", "Med. dQ/dx"};
+  vector<TString> y_labels = {"Inclusive", "#phi = [40, 50)#circ",  "#phi = [50, 60)#circ",  "#phi = [60, 70)#circ",  "#phi = [70, 80)#circ",  "#phi = [80, 85)#circ",  "#phi = [85, 90)#circ"};
   double latex_y_min = 0.22;
   double latex_y_width = 0.105;
   TLatex this_latex;
@@ -399,8 +414,9 @@ void run_calib_const_fit(int run_num = 0){
   for(int i = 0; i < 7; i++){
     cout << latex_y_min + (i + 0.) * latex_y_width << endl;
     this_latex.DrawLatex(0.10, latex_y_min + (i + 0.) * latex_y_width, y_labels[i]);
+    this_latex.DrawLatex(0.10, latex_y_min + (i + 0.) * latex_y_width - 0.025, Form("B(%.1f#circ)", phis[i]));
   }
-
+  
   TPad *pad1 = new TPad("", "", 0.12, 0., 0.40, 1.);
   canvas_margin(pad1);
   pad1 -> Draw();
@@ -442,10 +458,17 @@ void run_calib_const_fit(int run_num = 0){
   box_1p_pad1 -> Draw("same");
   
   TBox * box_pad1 = new TBox(plane0_vec.at(0) - plane0_err_vec.at(0), 0., plane0_vec.at(0) + plane0_err_vec.at(0), 8);
-  box_pad1 -> SetFillColor(kGreen);
+  box_pad1 -> SetFillColor(kGreen+1);
   box_pad1 -> Draw("same");
   
   gr_plane0 -> Draw("ezpsame");
+
+  TLine *l_modbox_ccal_pad1 = new TLine(mc_modbox_ccals[0], 0., mc_modbox_ccals[0], 8.);
+  l_modbox_ccal_pad1 -> SetLineWidth(2);
+  l_modbox_ccal_pad1 -> SetLineColor(kRed);
+  l_modbox_ccal_pad1 -> SetLineStyle(7);
+  l_modbox_ccal_pad1 -> Draw("lsame");
+  
   pad1 -> RedrawAxis();
 
   c -> cd();
@@ -476,10 +499,16 @@ void run_calib_const_fit(int run_num = 0){
   box_1p_pad2 -> Draw("same");
 
   TBox * box_pad2 = new TBox(plane1_vec.at(0) - plane1_err_vec.at(0), 0., plane1_vec.at(0) + plane1_err_vec.at(0), 8);
-  box_pad2 -> SetFillColor(kGreen);
+  box_pad2 -> SetFillColor(kGreen+1);
   box_pad2 -> Draw("same");
 
   gr_plane1 -> Draw("ezpsame");
+
+  TLine *l_modbox_ccal_pad2 = new TLine(mc_modbox_ccals[1], 0., mc_modbox_ccals[1], 8.);
+  l_modbox_ccal_pad2 -> SetLineWidth(2);
+  l_modbox_ccal_pad2 -> SetLineColor(kRed);
+  l_modbox_ccal_pad2 -> SetLineStyle(7);
+  l_modbox_ccal_pad2 -> Draw("lsame");
 
   pad2 -> RedrawAxis();
   
@@ -492,8 +521,8 @@ void run_calib_const_fit(int run_num = 0){
   max_ccal = *std::max_element(plane2_vec.begin(), plane2_vec.end());
   min_ccal = *std::min_element(plane2_vec.begin(), plane2_vec.end());
   max_ccal_err = *std::max_element(plane2_err_vec.begin(), plane2_err_vec.end());
-  x_min = plane2_vec.at(0) - plane2_vec.at(0) * 0.015;
-  x_max = plane2_vec.at(0) + plane2_vec.at(0) * 0.015;
+  x_min = plane2_vec.at(0) - plane2_vec.at(0) * 0.020;
+  x_max = plane2_vec.at(0) + plane2_vec.at(0) * 0.020;
   TH1D * temp_h_pad3 = new TH1D("", "", 1., x_min, x_max);
   temp_h_pad3 -> SetStats(0);
   temp_h_pad3 -> GetXaxis() -> SetTitle("Plane 2 C_{cal.} #times 10^{-2}");
@@ -511,18 +540,25 @@ void run_calib_const_fit(int run_num = 0){
   box_1p_pad3 -> Draw("same");
   
   TBox * box_pad3 = new TBox(plane2_vec.at(0) - plane2_err_vec.at(0), 0., plane2_vec.at(0) + plane2_err_vec.at(0), 8);
-  box_pad3 -> SetFillColor(kGreen);
+  box_pad3 -> SetFillColor(kGreen+1);
   box_pad3 -> Draw("same");
 
   gr_plane2 -> Draw("ezpsame");
 
+  TLine *l_modbox_ccal_pad3 = new TLine(mc_modbox_ccals[2], 0., mc_modbox_ccals[2], 8.);
+  l_modbox_ccal_pad3 -> SetLineWidth(2);
+  l_modbox_ccal_pad3 -> SetLineColor(kRed);
+  l_modbox_ccal_pad3 -> SetLineStyle(7);
+  l_modbox_ccal_pad3 -> Draw("lsame");
+  
   pad3 -> RedrawAxis();
 
   c -> cd();
 
   TLegend *l = new TLegend(0.01, 0.88, 0.11, 0.99);
-  l -> AddEntry(box_pad3, "Central #pm stat.", "f");
-  l -> AddEntry(box_1p_pad3, "Central #pm 1%", "f");
+  l -> AddEntry(box_pad3, "Incl. #pm stat.", "f");
+  l -> AddEntry(box_1p_pad3, "Incl. #pm 1%", "f");
+  l -> AddEntry(l_modbox_ccal_pad3, "2023B Mod. Box", "l");
   l -> Draw("same");
 
   TString particle_label_str = "";
@@ -534,7 +570,7 @@ void run_calib_const_fit(int run_num = 0){
   latex_SBND.SetTextSize(0.03);
   latex_method.SetTextSize(0.03);
   if(isdata) latex_SBND.DrawLatex(0.12, 0.96, "#font[62]{SBND Data} Run " + run_str + " #font[42]{#it{#scale[1.0]{Preliminary}}}");
-  else latex_SBND.DrawLatex(0.12, 0.96, "#font[62]{SBND Simulation} #font[42]{#it{#scale[1.0]{Preliminary}}}");
+  else latex_SBND.DrawLatex(0.12, 0.96, "#font[62]{SBND Simulation 2024B CV} #font[42]{#it{#scale[1.0]{Preliminary}}}");
   latex_method.DrawLatex(0.93, 0.96, particle_label_str);
 
   TString output_plot_dir = getenv("PLOT_PATH");

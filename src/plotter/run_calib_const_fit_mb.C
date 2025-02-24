@@ -144,7 +144,7 @@ void Write_1D_hist(TH1D *in, TString outname, TString suffix, TString particle, 
   latex_method.DrawLatex(0.18, 0.87, latex_str);
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  TString outfile_str = output_plot_dir + "/MC_2024B_CV/" + outname + ".pdf";
+  TString outfile_str = output_plot_dir + "/mc/mb/langau_fits/" + outname + ".pdf";
   if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/mb/langau_fits/" + outname + ".pdf";
 
   TString outfile_dir = gSystem->DirName(outfile_str);
@@ -353,7 +353,7 @@ void run_calib_const_fit_mb(int run_num = 0){
 
   TString filename = "output_recom_loop_mb_run_" + run_str + ".root";
   if(!isdata){
-    filename = "output_recom_2024B_GENIE_CV.root";
+    filename = "output_recom_loop_mb_mc.root";
     run_str = "MC";
   }
 
@@ -555,7 +555,7 @@ void run_calib_const_fit_mb(int run_num = 0){
   TString output_plot_dir = getenv("PLOT_PATH");
   TString outfile_str = output_plot_dir + "/MC_2024B_CV/c_cal_comp.pdf";
   if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/mb/c_cals/c_cal_comp.png";
-
+  
   TString outfile_dir = gSystem->DirName(outfile_str);
   if (gSystem->AccessPathName(outfile_dir)) {
     std::cout << "Directory does not exist, creating: " << outfile_dir << std::endl;

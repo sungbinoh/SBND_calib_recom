@@ -88,7 +88,7 @@ void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr
       }
     }
 
-    double this_lifetime_corr = Lifetime_Correction(sp_x[i], 10.0);
+    double this_lifetime_corr = Lifetime_Correction(sp_x[i], 100.0);
     if(isdata) this_lifetime_corr = 1.;
     double corrected_dqdx = dqdx[i] * this_lifetime_corr;
     FillHist("rr_vs_corr_dqdx_" + suffix, rr[i], corrected_dqdx, 1., 300., 0., 300., 3000., 0., 3000.);
@@ -162,6 +162,7 @@ void run_recom_loop_mb(int run_num = 0) {
   TString sample_list_label = getenv("FILELIST_LABEL");
 
   TString fileListPath = sample_list_dir + "/list" + sample_list_label + run_number_str + ".txt";
+  if(!isdata) fileListPath = sample_list_dir + "/calib_ntuple_moon_v10_04_1.list";
   cout << "Opening : " << fileListPath << endl;
   // Check if the file exists
   std::ifstream file(fileListPath.Data());  // Convert TString to const char*
@@ -170,9 +171,7 @@ void run_recom_loop_mb(int run_num = 0) {
     cout << "Exiting [run_recom_loop_emb]" << endl;
     return;
   }
-  
-  if(!isdata) fileListPath = input_file_dir + "/sample_list/list_2023B_GENIE_CV_local.txt";
-  cout << "Opening : " << fileListPath << endl;
+
   AddFilesToChain(fileListPath, fChain);
 
   TTreeReader myReader(fChain);
@@ -369,7 +368,7 @@ void run_recom_loop_mb(int run_num = 0) {
 
   TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
   TString output_file_name = output_rootfile_dir + "/output_recom_loop_mb_run_" + run_number_str + ".root";
-  if(!isdata) output_file_name = output_rootfile_dir + "/output_recom_2024B_GENIE_CV.root";
+  if(!isdata) output_file_name = output_rootfile_dir + "/output_recom_loop_mb_mc.root";
   out_rootfile = new TFile(output_file_name, "RECREATE");
   out_rootfile -> cd();
 

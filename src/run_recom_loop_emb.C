@@ -128,6 +128,8 @@ void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr
     TF1 * this_dEdx_PDF = dEdx_PDF(par);
     double this_dEdx_MPV = this_dEdx_PDF -> GetMaximumX();
 
+    if(rr[i] < 0.) continue;
+    
     FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix, this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
     FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_phi" + theta_trk_x_str, this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
     //cout << "[Fill_corrected_dqdx_plots] " << i << ", rr : " << rr[i] << ", KE : " << muon_sp_range_to_KE -> Eval(rr[i]) << ", this_kappa : " << this_kappa << ", this_dEdx_MPV : " << this_dEdx_MPV << endl;
@@ -144,11 +146,14 @@ void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr
   }
 }
 
-void run_recom_loop_emb(int run_number = -1) {
+void run_recom_loop_emb(int run_number = 0) {
 
   TString run_number_str = "";
   run_number_str = TString::Format("%d", run_number);
-
+  if(run_number > 0){
+    isdata = true;
+  }
+  
   /////////////////////////////////
   // == Define histograms
   /////////////////////////////////
@@ -165,6 +170,7 @@ void run_recom_loop_emb(int run_number = -1) {
   TString sample_list_label = getenv("FILELIST_LABEL");
 
   TString fileListPath = sample_list_dir + "/list" + sample_list_label + run_number_str + ".txt";
+  if(!isdata) fileListPath = sample_list_dir + "/calib_ntuple_moon_v10_04_1.list";
   cout << "Opening : " << fileListPath << endl;
   // Check if the file exists
   std::ifstream file(fileListPath.Data());  // Convert TString to const char*
@@ -378,6 +384,7 @@ void run_recom_loop_emb(int run_number = -1) {
 
   TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
   TString output_file_name = output_rootfile_dir + "/output_recom_loop_emb_run_" + run_number_str + ".root";
+  if(!isdata) output_file_name = output_rootfile_dir + "/output_recom_loop_emb_mc.root";
   out_rootfile = new TFile(output_file_name, "RECREATE");
   out_rootfile -> cd();
   

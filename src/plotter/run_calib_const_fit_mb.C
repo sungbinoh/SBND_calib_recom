@@ -5,6 +5,8 @@
 #include "BetheBloch.h"
 #include <iostream>
 
+TString image_type = "png";
+
 bool isdata = false;
 TString run_str = "";
 TString suffix = "";
@@ -27,7 +29,7 @@ vector<double> vec_c_cal_err;
 
 void Write_1D_hist(TH1D *in, TString outname, TString suffix, TString particle, TString latex_str, TString plane, TString title_x, TString title_y, double x_min, double x_max, int rebin, bool do_langau_fit){
 
-  TCanvas *c = new TCanvas("", "", 800, 600);
+  TCanvas *c = new TCanvas("", "", 1600, 1200);
   canvas_margin(c);
   gStyle -> SetOptStat(1111);
 
@@ -144,8 +146,8 @@ void Write_1D_hist(TH1D *in, TString outname, TString suffix, TString particle, 
   latex_method.DrawLatex(0.18, 0.87, latex_str);
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  TString outfile_str = output_plot_dir + "/mc/mb/langau_fits/" + outname + ".pdf";
-  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/mb/langau_fits/" + outname + ".pdf";
+  TString outfile_str = output_plot_dir + "/mc/mb/langau_fits/" + outname + "." + image_type;
+  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/mb/langau_fits/" + outname + "." + image_type;
 
   TString outfile_dir = gSystem->DirName(outfile_str);
   if (gSystem->AccessPathName(outfile_dir)) {
@@ -233,7 +235,7 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, TString
     Write_1D_hist(this_1D_Y, "/" + plane + "_" + this_1D_Y_hist_name, suffix, particle, dEdx_latex_str, plane, "dQ/dx [ADC/cm]", "Events", 0., 5000., rebin_dqdx[i - 1], true);
   }
 
-  TCanvas *c = new TCanvas("", "", 800, 600);
+  TCanvas *c = new TCanvas("", "", 1600, 1200);
   canvas_margin(c);
   gStyle -> SetOptStat(1111);
   c -> SetLogz();
@@ -308,8 +310,8 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, TString
   latex_method.DrawLatex(0.90, 0.96, particle_label_str);
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  TString outfile_str = output_plot_dir + "/mc/mb/c_cals//dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
-  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/mb/c_cals/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
+  TString outfile_str = output_plot_dir + "/mc/mb/c_cals//dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + "." + image_type;
+  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/mb/c_cals/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + "." + image_type;
   
   TString outfile_dir = gSystem->DirName(outfile_str);
   if (gSystem->AccessPathName(outfile_dir)) {
@@ -394,7 +396,7 @@ void run_calib_const_fit_mb(int run_num = 0){
   gr_plane2 -> SetLineWidth(2);
   
   gStyle->SetLineWidth(2);
-  TCanvas *c = new TCanvas("", "", 800, 600);
+  TCanvas *c = new TCanvas("", "", 1600, 1200);
   canvas_margin(c);
   gStyle -> SetOptStat(1111);
   c -> cd();
@@ -553,8 +555,8 @@ void run_calib_const_fit_mb(int run_num = 0){
   latex_method.DrawLatex(0.93, 0.96, particle_label_str);
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  TString outfile_str = output_plot_dir + "/mc/mb/c_cals/c_cal_comp.pdf";
-  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/mb/c_cals/c_cal_comp.pdf";
+  TString outfile_str = output_plot_dir + "/mc/mb/c_cals/c_cal_comp." + image_type;
+  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/mb/c_cals/c_cal_comp." + image_type;
 
   TString outfile_dir = gSystem->DirName(outfile_str);
   if (gSystem->AccessPathName(outfile_dir)) {

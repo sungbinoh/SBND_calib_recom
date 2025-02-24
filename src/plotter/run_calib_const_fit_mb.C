@@ -308,8 +308,8 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, TString
   latex_method.DrawLatex(0.90, 0.96, particle_label_str);
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  TString outfile_str = output_plot_dir + "/mc/mb/c_cals//dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
-  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/mb/c_cals/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
+  TString outfile_str = output_plot_dir + "/MC_2024B_CV/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
+  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/mb/c_cals/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".png";
   
   TString outfile_dir = gSystem->DirName(outfile_str);
   if (gSystem->AccessPathName(outfile_dir)) {
@@ -553,9 +553,9 @@ void run_calib_const_fit_mb(int run_num = 0){
   latex_method.DrawLatex(0.93, 0.96, particle_label_str);
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  TString outfile_str = output_plot_dir + "/mc/mb/c_cals/c_cal_comp.pdf";
-  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/mb/c_cals/c_cal_comp.pdf";
-
+  TString outfile_str = output_plot_dir + "/MC_2024B_CV/c_cal_comp.pdf";
+  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/mb/c_cals/c_cal_comp.png";
+  
   TString outfile_dir = gSystem->DirName(outfile_str);
   if (gSystem->AccessPathName(outfile_dir)) {
     std::cout << "Directory does not exist, creating: " << outfile_dir << std::endl;

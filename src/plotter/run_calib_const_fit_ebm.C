@@ -156,7 +156,13 @@ void Write_1D_hist(TH1D *in, TString outname, TString suffix, TString particle, 
 
   TString output_plot_dir = getenv("PLOT_PATH");
   TString outfile_str = output_plot_dir + "/MC_2024B_CV/" + outname + ".pdf";
-  if(isdata) outfile_str = output_plot_dir + "/Run" + run_str + "/" + outname + ".pdf";
+  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/emb/langau_fits/" + outname + ".pdf";
+
+  TString outfile_dir = gSystem->DirName(outfile_str);
+  if (gSystem->AccessPathName(outfile_dir)) {
+    std::cout << "Directory does not exist, creating: " << outfile_dir << std::endl;
+    gSystem->mkdir(outfile_dir, kTRUE);
+  }
   c -> SaveAs(outfile_str);
   c -> Close();
 
@@ -295,7 +301,7 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, double 
   l -> AddEntry(f_mod_box, "Fitting result", "l");
   l -> AddEntry(f_mod_box, Form("C_{cal.} = %.3f #pm %.3f #times 10^{-2} [ADC/electrons]", f_mod_box -> GetParameter(0), f_mod_box -> GetParError(0)), "");
   l -> AddEntry(f_mod_box, Form("#beta' = %.3f #pm %.3f [(kV/cm)(g/cm^{3})/MeV]", f_mod_box -> GetParameter(1), f_mod_box -> GetParError(1)), "");
-  l -> AddEntry(f_mod_box, Form("#alpha = %.2f #pm %.3f",f_mod_box -> GetParameter(2), f_mod_box -> GetParError(2)), "");
+  l -> AddEntry(f_mod_box, Form("#alpha = %.3f #pm %.3f",f_mod_box -> GetParameter(2), f_mod_box -> GetParError(2)), "");
   l -> Draw("same");
 
   vec_c_cal.push_back(f_mod_box -> GetParameter(0));
@@ -316,7 +322,13 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, double 
 
   TString output_plot_dir = getenv("PLOT_PATH");
   TString outfile_str = output_plot_dir + "/MC_2024B_CV/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
-  if(isdata) outfile_str = output_plot_dir + "/Run" + run_str + "/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
+  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/emb/c_cals/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
+
+  TString outfile_dir = gSystem->DirName(outfile_str);
+  if (gSystem->AccessPathName(outfile_dir)) {
+    std::cout << "Directory does not exist, creating: " << outfile_dir << std::endl;
+    gSystem->mkdir(outfile_dir, kTRUE);
+  }
   c -> SaveAs(outfile_str);
   
   c -> Close();
@@ -352,7 +364,7 @@ void run_calib_const_fit_ebm(int run_num = 0){
 			     4, 4, 4, 4, 4,
 			     4, 4, 4, 4, 4};
 
-  TString filename = "output_recom_" + run_str + ".root";
+  TString filename = "output_recom_loop_emb_run_" + run_str + ".root";
   if(!isdata){
     filename = "output_recom_2024B_GENIE_CV.root";
     run_str = "MC";
@@ -416,6 +428,10 @@ void run_calib_const_fit_ebm(int run_num = 0){
     this_latex.DrawLatex(0.10, latex_y_min + (i + 0.) * latex_y_width, y_labels[i]);
     this_latex.DrawLatex(0.10, latex_y_min + (i + 0.) * latex_y_width - 0.025, Form("B(%.1f#circ)", phis[i]));
   }
+
+  double x_range_plane0 = 0.05; // -- range from inclusive c_cal
+  double x_range_plane1 = 0.05;
+  double x_range_plane2 = 0.05;
   
   TPad *pad1 = new TPad("", "", 0.12, 0., 0.40, 1.);
   canvas_margin(pad1);
@@ -424,8 +440,8 @@ void run_calib_const_fit_ebm(int run_num = 0){
   double max_ccal = *std::max_element(plane0_vec.begin(), plane0_vec.end());
   double min_ccal = *std::min_element(plane0_vec.begin(), plane0_vec.end());
   double max_ccal_err = *std::max_element(plane0_err_vec.begin(), plane0_err_vec.end());
-  double x_min = plane0_vec.at(0) - plane0_vec.at(0) * 0.015;
-  double x_max = plane0_vec.at(0) + plane0_vec.at(0) * 0.015;
+  double x_min = plane0_vec.at(0) - plane0_vec.at(0) * x_range_plane0;
+  double x_max = plane0_vec.at(0) + plane0_vec.at(0) * x_range_plane0;
   TH1D * temp_h_pad1 = new TH1D("", "", 1., x_min, x_max);
   /*
   vector<TString> y_labels = {"Central", "CA-FV", "NE", "NW", "SE", "SW", "Median dQ/dx"};
@@ -480,8 +496,8 @@ void run_calib_const_fit_ebm(int run_num = 0){
   max_ccal = *std::max_element(plane1_vec.begin(), plane1_vec.end());
   min_ccal = *std::min_element(plane1_vec.begin(), plane1_vec.end());
   max_ccal_err = *std::max_element(plane1_err_vec.begin(), plane1_err_vec.end());
-  x_min = plane1_vec.at(0) - plane1_vec.at(0) * 0.015;
-  x_max = plane1_vec.at(0) + plane1_vec.at(0) * 0.015;
+  x_min = plane1_vec.at(0) - plane1_vec.at(0) * x_range_plane1;
+  x_max = plane1_vec.at(0) + plane1_vec.at(0) * x_range_plane1;
   TH1D * temp_h_pad2 = new TH1D("", "", 1., x_min, x_max);
   temp_h_pad2 -> SetStats(0);
   temp_h_pad2 -> GetXaxis() -> SetTitle("Plane 1 C_{cal.} #times 10^{-2}");
@@ -521,8 +537,8 @@ void run_calib_const_fit_ebm(int run_num = 0){
   max_ccal = *std::max_element(plane2_vec.begin(), plane2_vec.end());
   min_ccal = *std::min_element(plane2_vec.begin(), plane2_vec.end());
   max_ccal_err = *std::max_element(plane2_err_vec.begin(), plane2_err_vec.end());
-  x_min = plane2_vec.at(0) - plane2_vec.at(0) * 0.020;
-  x_max = plane2_vec.at(0) + plane2_vec.at(0) * 0.020;
+  x_min = plane2_vec.at(0) - plane2_vec.at(0) * x_range_plane2;
+  x_max = plane2_vec.at(0) + plane2_vec.at(0) * x_range_plane2;
   TH1D * temp_h_pad3 = new TH1D("", "", 1., x_min, x_max);
   temp_h_pad3 -> SetStats(0);
   temp_h_pad3 -> GetXaxis() -> SetTitle("Plane 2 C_{cal.} #times 10^{-2}");
@@ -575,7 +591,13 @@ void run_calib_const_fit_ebm(int run_num = 0){
 
   TString output_plot_dir = getenv("PLOT_PATH");
   TString outfile_str = output_plot_dir + "/MC_2024B_CV/c_cal_comp.pdf";
-  if(isdata) outfile_str = output_plot_dir + "/Run" + run_str + "/c_cal_comp.pdf";
+  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/emb/c_cals/c_cal_comp.pdf";
+
+  TString outfile_dir = gSystem->DirName(outfile_str);
+  if (gSystem->AccessPathName(outfile_dir)) {
+    std::cout << "Directory does not exist, creating: " << outfile_dir << std::endl;
+    gSystem->mkdir(outfile_dir, kTRUE);
+  }
   c -> SaveAs(outfile_str);
 
   cout << "category\tplane0\tplane1\tplane2" << endl;

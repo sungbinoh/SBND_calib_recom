@@ -156,13 +156,13 @@ void Write_1D_hist(TH1D *in, TString outname, TString suffix, TString particle, 
 
   TString output_plot_dir = getenv("PLOT_PATH");
   TString outfile_str = output_plot_dir + "/MC_2024B_CV/recom/" + outname + ".pdf";
-  if(isdata) outfile_str = output_plot_dir + "/Run" + run_str + "/" + outname + ".pdf";
+  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/emb/langau_fits/" + outname + ".pdf";
   c -> SaveAs(outfile_str);
   c -> Close();
 
 }
 
-void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, double phi, TString plane, TString particle, int rebin_y, double dEdx_low, double dEdx_high, double dEdx_MPV_binning[], int num_NbinsX, int rebin_dqdx[]){
+void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, double phi, TString plane, double c_cal, TString particle, int rebin_y, double dEdx_low, double dEdx_high, double dEdx_MPV_binning[], int num_NbinsX, int rebin_dqdx[]){
 
   //const Int_t num_NbinsX = sizeof(dEdx_MPV_binning) / sizeof(dEdx_MPV_binning[0]) - 1;
   
@@ -271,7 +271,7 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, double 
     cout << i << ", MPV_vec_map[particle] " << plane << " : " << MPV_vec_map[particle+plane+suffix].at(i) << ", dEdx_vec : " << dEdx_vec_map[particle+plane+suffix].at(i) << endl;
   }
 
-  double fit_x_max = 2.0;
+  double fit_x_max = 3.1;
   if(particle == "proton") fit_x_max = 9.0;  
   TF1 * f_mod_box = new TF1("f_mod_box", "(294.49153 * [0] / [1]) * log(1.4388489 * [1] * x + [2])", 1.6, fit_x_max);
   double this_B_phi = B_phi(phi);
@@ -292,7 +292,7 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, double 
   l -> AddEntry(f_mod_box, "Fitting result", "l");
   l -> AddEntry(f_mod_box, Form("C_{cal.} = %.3f #pm %.3f #times 10^{-2} [ADC/electrons]", f_mod_box -> GetParameter(0), f_mod_box -> GetParError(0)), "");
   l -> AddEntry(f_mod_box, Form("#beta' = %.3f #pm %.3f [(kV/cm)(g/cm^{3})/MeV]", f_mod_box -> GetParameter(1), f_mod_box -> GetParError(1)), "");
-  l -> AddEntry(f_mod_box, Form("#alpha = %.2f #pm %.3f",f_mod_box -> GetParameter(2), f_mod_box -> GetParError(2)), "");
+  l -> AddEntry(f_mod_box, Form("#alpha = %.3f #pm %.3f",f_mod_box -> GetParameter(2), f_mod_box -> GetParError(2)), "");
   l -> Draw("same");
 
   vec_c_cal.push_back(f_mod_box -> GetParameter(0));
@@ -313,7 +313,7 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, double 
 
   TString output_plot_dir = getenv("PLOT_PATH");
   TString outfile_str = output_plot_dir + "/MC_2024B_CV/recom/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
-  if(isdata) outfile_str = output_plot_dir + "/Run" + run_str + "/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
+  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/emb/c_cals/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
   c -> SaveAs(outfile_str);
   
   c -> Close();
@@ -369,7 +369,7 @@ void fit_ebm(TString particle, TString plane, double dEdx_low, double dEdx_high)
 
   TString output_plot_dir = getenv("PLOT_PATH");
   TString outfile_str = output_plot_dir + "/MC_2024B_CV/recom/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + "_allphi.pdf";
-  if(isdata) outfile_str = output_plot_dir + "/Run" + run_str + "/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + "_allphi.pdf";
+  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/emb/c_cals/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + "_allphi.pdf";
   c -> SaveAs(outfile_str);
 
   c -> Close();  
@@ -385,7 +385,8 @@ void run_recom_ebm_fit(int run_num = 0){
   setTDRStyle();
   double dEdx_MPV_binning_muon[] = {0.,
 				    1.6, 1.7, 1.8, 1.9, 2.0,
-				    2.1, 2.3, 2.6, 3.1, 4.0
+				    2.1, 2.3, 2.6, 3.0, 3.5,
+				    4.0,
 				    };
   int rebin_dqdx_muon[] = {0,
 			   2, 2, 5, 5, 5,
@@ -406,25 +407,25 @@ void run_recom_ebm_fit(int run_num = 0){
 			     4, 4, 4, 4, 4,
 			     4, 4, 4, 4, 4};
 
-  TString filename = "output_recom_" + run_str + ".root";
+  TString filename = "output_recom_loop_emb_run_" + run_str + ".root";
   if(!isdata){
     filename = "output_recom_2024B_GENIE_CV.root";
     run_str = "MC";
   }
 
   TString suffixes[] = {"", "_phi40to50", "_phi50to60", "_phi60to70", "_phi70to80", "_phi80to85", "_phi85to90"};
+  //TString suffixes[] = {"", "_phi50to60", "_phi60to70", "_phi70to80", "_phi80to85", "_phi85to90"};
   double phis[] = {65., 45., 55., 65., 75., 82.5, 87.5};
   for(int i = 0; i < 7; i++){
     TString this_suffix = suffixes[i];
-    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, phis[i], "plane0", "muon", 5, 1.5, 4.5, dEdx_MPV_binning_muon, 11, rebin_dqdx_muon);
-    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, phis[i], "plane1", "muon", 5, 1.5, 4.5, dEdx_MPV_binning_muon, 11, rebin_dqdx_muon);
-    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, phis[i], "plane2", "muon", 5, 1.5, 4.5, dEdx_MPV_binning_muon, 11, rebin_dqdx_muon);
+    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, phis[i], "plane0", 2.07712, "muon", 10, 1.5, 2.1, dEdx_MPV_binning_muon, 12, rebin_dqdx_muon);
+    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, phis[i], "plane1", 2.07178, "muon", 10, 1.5, 2.1, dEdx_MPV_binning_muon, 12, rebin_dqdx_muon);
+    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, phis[i], "plane2", 2.04785, "muon", 10, 1.5, 2.1, dEdx_MPV_binning_muon, 12, rebin_dqdx_muon);
   }
 
-  fit_ebm("muon", "plane0", 1.5, 4.5);
-
+  cout << "[run_recom_ebm_fit] Writing output root file" << endl;
   TString output_file_dir = getenv("OUTPUTROOT_PATH");
-  TString out_root_name = output_file_dir + "/recom_fit_ebm_" + run_str + ".root";
+  TString out_root_name = output_file_dir + "/recom_ebm_fit/run_" + run_str + ".root";
   TFile *outfile = new TFile(out_root_name, "RECREATE");
   outfile -> cd();
 

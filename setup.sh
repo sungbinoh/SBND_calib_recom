@@ -10,7 +10,7 @@ source $CALIB_WORKING_DIR/bin/BashColorSets.sh
 
 #### -- Setup root
 MY_OS_REL=$(cat /etc/os-release | grep ^NAME | sed -e 's/NAME=//g' -e 's/"//g')
-if [ "$MY_OS_REL" = "AlmaLinux" ]; then
+if [[ "$MY_OS_REL" == "AlmaLinux" && $(hostname) != *"dune-gpu01"* ]]; then
   source /cvmfs/larsoft.opensciencegrid.org/spack-v0.22.0-fermi/setup-env.sh
   spack load root@6.28.12 arch=linux-almalinux9-x86_64_v3
 elif [ "$MY_OS_REL" = "Scientific Linux" ]; then
@@ -32,7 +32,7 @@ elif [ "$MY_OS_REL" = "Scientific Linux" ]; then
   setup root v6_28_12 -q e26:p3915:prof 
   setup cmake v3_27_4
 else
-  echo "WARNING: your OS \"${MY_OS_REL}\" is not neither AlmaLinux or Scientific Linux"
+  echo "WARNING: Seems you are using a private machine to run this repo"
   echo "I do not automatically set up ROOT. If ROOT is already setup, it shoould be okay"
 fi
 
@@ -47,8 +47,7 @@ fi
 
 if [[ `hostname` == *"dune-gpu01"* ]]
 then
-    source /cvmfs/larsoft.opensciencegrid.org/spack-packages/setup-env.sh
-    spack load root@6.28.12
     export SAMPLE_PATH=$DATA_PATH/sample_list/dune-gpu01/
+    export FILELIST_LABEL=_dune_gpu01_run_
 fi
 #####################################################################################

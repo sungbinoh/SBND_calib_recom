@@ -144,7 +144,7 @@ void Write_1D_hist(TH1D *in, TString outname, TString suffix, TString particle, 
   latex_method.DrawLatex(0.18, 0.87, latex_str);
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  TString outfile_str = output_plot_dir + "/MC_2024B_CV/" + outname + ".pdf";
+  TString outfile_str = output_plot_dir + "/mc/mb/langau_fits/" + outname + ".pdf";
   if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/mb/langau_fits/" + outname + ".pdf";
 
   TString outfile_dir = gSystem->DirName(outfile_str);
@@ -308,7 +308,7 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, TString
   latex_method.DrawLatex(0.90, 0.96, particle_label_str);
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  TString outfile_str = output_plot_dir + "/MC_2024B_CV/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
+  TString outfile_str = output_plot_dir + "/mc/mb/c_cals//dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
   if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/mb/c_cals/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
   
   TString outfile_dir = gSystem->DirName(outfile_str);
@@ -353,7 +353,7 @@ void run_calib_const_fit_mb(int run_num = 0){
 
   TString filename = "output_recom_loop_mb_run_" + run_str + ".root";
   if(!isdata){
-    filename = "output_recom_2024B_GENIE_CV.root";
+    filename = "output_recom_loop_mb_mc.root";
     run_str = "MC";
   }
 
@@ -553,7 +553,7 @@ void run_calib_const_fit_mb(int run_num = 0){
   latex_method.DrawLatex(0.93, 0.96, particle_label_str);
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  TString outfile_str = output_plot_dir + "/MC_2024B_CV/c_cal_comp.pdf";
+  TString outfile_str = output_plot_dir + "/mc/mb/c_cals/c_cal_comp.pdf";
   if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/mb/c_cals/c_cal_comp.pdf";
 
   TString outfile_dir = gSystem->DirName(outfile_str);

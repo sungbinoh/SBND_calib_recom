@@ -155,7 +155,7 @@ void Write_1D_hist(TH1D *in, TString outname, TString suffix, TString particle, 
   latex_method.DrawLatex(0.18, 0.87, latex_str);
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  TString outfile_str = output_plot_dir + "/MC_2024B_CV/" + outname + ".pdf";
+  TString outfile_str = output_plot_dir + "/mc/emb/langau_fits/" + outname + ".pdf";
   if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/emb/langau_fits/" + outname + ".pdf";
 
   TString outfile_dir = gSystem->DirName(outfile_str);
@@ -321,7 +321,7 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, double 
   latex_method.DrawLatex(0.90, 0.96, particle_label_str);
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  TString outfile_str = output_plot_dir + "/MC_2024B_CV/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
+  TString outfile_str = output_plot_dir + "/mc/emb/c_cals/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
   if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/emb/c_cals/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
 
   TString outfile_dir = gSystem->DirName(outfile_str);
@@ -366,7 +366,7 @@ void run_calib_const_fit_ebm(int run_num = 0){
 
   TString filename = "output_recom_loop_emb_run_" + run_str + ".root";
   if(!isdata){
-    filename = "output_recom_2024B_GENIE_CV.root";
+    filename = "output_recom_loop_emb_mc.root";
     run_str = "MC";
   }
 
@@ -586,11 +586,11 @@ void run_calib_const_fit_ebm(int run_num = 0){
   latex_SBND.SetTextSize(0.03);
   latex_method.SetTextSize(0.03);
   if(isdata) latex_SBND.DrawLatex(0.12, 0.96, "#font[62]{SBND Data} Run " + run_str + " #font[42]{#it{#scale[1.0]{Preliminary}}}");
-  else latex_SBND.DrawLatex(0.12, 0.96, "#font[62]{SBND Simulation 2024B CV} #font[42]{#it{#scale[1.0]{Preliminary}}}");
+  else latex_SBND.DrawLatex(0.12, 0.96, "#font[62]{SBND Simulation} #font[42]{#it{#scale[1.0]{Preliminary}}}");
   latex_method.DrawLatex(0.93, 0.96, particle_label_str);
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  TString outfile_str = output_plot_dir + "/MC_2024B_CV/c_cal_comp.pdf";
+  TString outfile_str = output_plot_dir + "/mc/emb/c_cals/c_cal_comp.pdf";
   if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/emb/c_cals/c_cal_comp.pdf";
 
   TString outfile_dir = gSystem->DirName(outfile_str);

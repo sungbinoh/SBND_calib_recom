@@ -322,7 +322,7 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, double 
 
   TString output_plot_dir = getenv("PLOT_PATH");
   TString outfile_str = output_plot_dir + "/MC_2024B_CV/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
-  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/emb/c_cals/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
+  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/emb/c_cals/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".png";
 
   TString outfile_dir = gSystem->DirName(outfile_str);
   if (gSystem->AccessPathName(outfile_dir)) {
@@ -591,7 +591,7 @@ void run_calib_const_fit_ebm(int run_num = 0){
 
   TString output_plot_dir = getenv("PLOT_PATH");
   TString outfile_str = output_plot_dir + "/MC_2024B_CV/c_cal_comp.pdf";
-  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/emb/c_cals/c_cal_comp.pdf";
+  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/emb/c_cals/c_cal_comp.png";
 
   TString outfile_dir = gSystem->DirName(outfile_str);
   if (gSystem->AccessPathName(outfile_dir)) {

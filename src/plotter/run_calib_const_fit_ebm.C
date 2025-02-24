@@ -325,7 +325,7 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, double 
   TString output_plot_dir = getenv("PLOT_PATH");
   TString outfile_str = output_plot_dir + "/mc/emb/c_cals/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + "." + image_type;
   if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/emb/c_cals/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + "." + image_type;
-
+  
   TString outfile_dir = gSystem->DirName(outfile_str);
   if (gSystem->AccessPathName(outfile_dir)) {
     std::cout << "Directory does not exist, creating: " << outfile_dir << std::endl;

@@ -5,7 +5,7 @@
 #include "BetheBloch.h"
 #include <iostream>
 
-TString image_type = "png";
+TString image_type = "pdf";
 
 bool isdata = false;
 TString run_str = "";
@@ -411,7 +411,7 @@ void run_calib_const_fit_ebm(int run_num = 0){
   gr_plane2 -> SetLineWidth(2);
   
   gStyle->SetLineWidth(2);
-  TCanvas *c = new TCanvas("", "", 1600, 1200);
+  TCanvas *c = new TCanvas("", "", 800, 600);
   canvas_margin(c);
   gStyle -> SetOptStat(1111);
   c -> cd();

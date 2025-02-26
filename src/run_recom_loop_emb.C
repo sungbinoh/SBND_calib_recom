@@ -18,7 +18,7 @@ double dqdx_scale_correction_angle(double theta){
   double p1 = 0.0500101;
   double p2 = -0.000211176;
 
-  double this_bias = (p0 + p1 * theta + p2 * theta * theta) * 100.; // -- % to number
+  double this_bias = (p0 + p1 * theta + p2 * theta * theta) / 100.; // -- % to number
   double this_correction = 1. / (1. - this_bias);
 
   return this_correction;
@@ -123,7 +123,10 @@ void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr
     if(isdata) this_lifetime_corr = 1.; // == FIXME, for data, do not apply lifetime correction. Should be updated in future to use different lifetime values for MC and data
     double corrected_dqdx = dqdx[i] * this_lifetime_corr;
     double this_dqdx_bias_corr = dqdx_scale_correction_angle(theta_trk_x);
-    cout << "this_dqdx_bias_corr: " << this_dqdx_bias_corr << endl;
+    //cout << "corrected_dqdx: " << corrected_dqdx << endl;
+    corrected_dqdx *= this_dqdx_bias_corr;
+    //cout << "bias corrected_dqdx: " << corrected_dqdx << endl;
+
     FillHist("rr_vs_corr_dqdx_" + suffix, rr[i], corrected_dqdx, 1., 300., 0., 300., 3000., 0., 3000.);
     FillHist("rr_vs_pitch_" + suffix, rr[i], pitch[i], 1., 300., 0., 300., 200., 0., 2.);
     FillHist("pitch_" + suffix, pitch[i], 1., 200., 0., 2.);
@@ -253,6 +256,7 @@ void run_recom_loop_emb(int run_number = 0) {
 
   // Loop over all entries of the TTree
   int _run_to = 370000;
+  //_run_to = 1000;
   while (myReader.Next()) {
     if(current_entry > _run_to) break;
    

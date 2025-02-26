@@ -11,6 +11,20 @@
 bool isdata = false;
 TSpline3 * muon_sp_range_to_KE = Get_sp_range_KE(mass_muon);
 
+double dqdx_scale_correction_angle(double theta){
+
+  // theta shoud be deg
+  double p0 = -1.55222;
+  double p1 = 0.0500101;
+  double p2 = -0.000211176;
+
+  double this_bias = (p0 + p1 * theta + p2 * theta * theta) * 100.; // -- % to number
+  double this_correction = 1. / (1. - this_bias);
+
+  return this_correction;
+}
+
+
 double zprime_60deg(double y, double z, int pm = 1){
   // == This function is for angle cut for induction planes.
   // ==== Rotation on yz plane to provide z' for cos(theta_z'x) measurement
@@ -89,7 +103,7 @@ void Fill_hit_plots(TString suffix, const TTreeReaderArray<float>& rr, const TTr
   }
 }
 
-void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr, const TTreeReaderArray<float>& dqdx, const TTreeReaderArray<float>& sp_x, const TTreeReaderArray<float>& sp_z, const TTreeReaderArray<float>& pitch, double last_x, double cos_plus_zprimex, double cos_minus_zprimex, TString theta_trk_x_str, bool do_ind_ang_cut = false){
+void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr, const TTreeReaderArray<float>& dqdx, const TTreeReaderArray<float>& sp_x, const TTreeReaderArray<float>& sp_z, const TTreeReaderArray<float>& pitch, double last_x, double cos_plus_zprimex, double cos_minus_zprimex, double theta_trk_x, TString theta_trk_x_str, bool do_ind_ang_cut = false){
   // == Fill plots for recombination fits
   if(dqdx.GetSize() < 1) return;
   for (unsigned i = 1; i < dqdx.GetSize() - 1; i++) { // == Not using first and last hits of a track
@@ -108,6 +122,8 @@ void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr
     double this_lifetime_corr = Lifetime_Correction(sp_x[i], 100.0);
     if(isdata) this_lifetime_corr = 1.; // == FIXME, for data, do not apply lifetime correction. Should be updated in future to use different lifetime values for MC and data
     double corrected_dqdx = dqdx[i] * this_lifetime_corr;
+    double this_dqdx_bias_corr = dqdx_scale_correction_angle(theta_trk_x);
+    cout << "this_dqdx_bias_corr: " << this_dqdx_bias_corr << endl;
     FillHist("rr_vs_corr_dqdx_" + suffix, rr[i], corrected_dqdx, 1., 300., 0., 300., 3000., 0., 3000.);
     FillHist("rr_vs_pitch_" + suffix, rr[i], pitch[i], 1., 300., 0., 300., 200., 0., 2.);
     FillHist("pitch_" + suffix, pitch[i], 1., 200., 0., 2.);
@@ -351,12 +367,12 @@ void run_recom_loop_emb(int run_number = 0) {
       */
 
       // == These are the main plots
-      Fill_corrected_dqdx_plots("plane0_trklen_60cm_passing_cathode_coszx", rr0, dqdx0, sp_x0, sp_z0, pitch0, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x_str, true);
-      Fill_corrected_dqdx_plots("plane1_trklen_60cm_passing_cathode_coszx", rr1, dqdx1, sp_x1, sp_z1, pitch1, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x_str, true);
+      Fill_corrected_dqdx_plots("plane0_trklen_60cm_passing_cathode_coszx", rr0, dqdx0, sp_x0, sp_z0, pitch0, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x, theta_trk_x_str, true);
+      Fill_corrected_dqdx_plots("plane1_trklen_60cm_passing_cathode_coszx", rr1, dqdx1, sp_x1, sp_z1, pitch1, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x, theta_trk_x_str, true);
       if(fabs(cos_zx) < 0.75){
 	Fill_track_plots("trklen_60cm_passing_cathode_coszx", dist_start, dist_end, rr2, dqdx2);
 	FillHist("theta_trk_x_str_trklen_60cm_passing_cathode_coszx", theta_trk_x, 1., 100., 0., 100.);
-        Fill_corrected_dqdx_plots("plane2_trklen_60cm_passing_cathode_coszx", rr2, dqdx2, sp_x2, sp_z2, pitch2, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x_str, true);
+        Fill_corrected_dqdx_plots("plane2_trklen_60cm_passing_cathode_coszx", rr2, dqdx2, sp_x2, sp_z2, pitch2, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x, theta_trk_x_str, true);
       }
       
       // == Bellow are for plot approvals

@@ -8,71 +8,21 @@
 #include "Math/Vector3D.h"
 #include "BetheBloch.h"
 
+double c_cal0 = 0.02;
+double c_cal1 = 0.02;
+double c_cal2 = 0.02;
+// == EBM par
+double alpha_ebm = 0.904;
+double beta_90 = 0.204;
+double R_ebm = 1.25;
+
+
 bool isdata = false;
 TSpline3 * muon_sp_range_to_KE = Get_sp_range_KE(mass_muon);
 
-const double y_min = -200, y_max = 200, z_min = 0, z_max = 500;
-const double pixel_size = 5;
-const int y_bins = (y_max - y_min) / pixel_size;
-const int z_bins = (z_max - z_min) / pixel_size;
-
-bool InVeto_region_eastTPC_C(double y, double z) {
-  // format considering {y_min, y_max, z_min, z_max}
-  vector<vector<double>> vetoed_regions = {
-    {-200, -185, 0, 15},
-    {-200, -195, 240, 260},
-    {-200, -195, 445, 455},
-    {-200, -185, 495, 500},
-    {190, 200, 460, 500},
-    {185, 200, 230, 260},
-    {180, 200, 0, 15},
-    {-55, 45, 0, 10}
-  };
-
-  for (size_t i = 0; i < vetoed_regions.size(); ++i) {
-    vector<double> region = vetoed_regions[i];
-
-    double y_min = region[0];
-    double y_max = region[1];
-    double z_min = region[2];
-    double z_max = region[3];
-
-    if (y >= y_min && y <= y_max && z >= z_min && z <= z_max) {
-      return true;
-    }
-  }
-  return false;
-}
-
-bool InVeto_region_westTPC_C(double y, double z) {
-  // format considering {y_min, y_max, z_min, z_max}
-  vector<vector<double>> vetoed_regions = {
-    {-200, -185, 0, 15},
-    {-200, -195, 230, 260},
-    {-200, -180, 485, 500},
-    {190, 200, 490, 500},
-    {190, 200, 235, 275},
-    {190, 200, 0, 15},
-    //{-5, 5, 0, 15}
-    {-50, 35, 0, 10}
-  };
-
-  for (size_t i = 0; i < vetoed_regions.size(); ++i) {
-    vector<double> region = vetoed_regions[i];
-
-    double y_min = region[0];
-    double y_max = region[1];
-    double z_min = region[2];
-    double z_max = region[3];
-
-    if (y >= y_min && y <= y_max && z >= z_min && z <= z_max) {
-      return true;
-    }
-  }
-  return false;
-}
-
 double zprime_60deg(double y, double z, int pm = 1){
+  // == This function is for angle cut for induction planes.
+  // ==== Rotation on yz plane to provide z' for cos(theta_z'x) measurement
   double cos_60deg = 0.5;
   double sig_60deg = sqrt(3.) * 0.5;
   double zprime = z * cos_60deg - (pm + 0.) * sig_60deg * y;
@@ -80,7 +30,7 @@ double zprime_60deg(double y, double z, int pm = 1){
 }
 
 double Get_EndMediandQdx(const TTreeReaderArray<float>& rr, const TTreeReaderArray<float>& dqdx){
-
+  // == This function is for a study with stronger cut on EndMediandQddx for stopping track selection
   vector<double> endp_dqdx;
   for (unsigned i = 0; i < dqdx.GetSize(); i++) {
     if(rr[i] > 0 && rr[i] < 5.){
@@ -105,8 +55,37 @@ double Get_EndMediandQdx(const TTreeReaderArray<float>& rr, const TTreeReaderArr
   return med_dqdx;
 }
 
-void Fill_track_plots(TString suffix, double dist_start, double dist_end, const TTreeReaderArray<float>& rr, const TTreeReaderArray<float>& dqdx){
+double B_phi(double phi = 90.){
+  double phi_rad = phi * TMath::Pi() / 180.;
+  double out = beta_90 / (sqrt(pow(sin(phi_rad), 2.) + pow(cos(phi_rad) / R_ebm, 2.)));
+  return out;
+}
 
+double emb_dedx(double dqdx, double phi, double this_c_cal){
+
+  double this_beta = B_phi(phi);
+  double dedx = ( exp( (this_beta * dqdx)/(29449.153 * this_c_cal) ) - alpha_ebm) / (1.4388489 * this_beta);
+
+  return dedx;
+}
+
+TString Get_theta_trk_x_bin_str(double theta_trk_x){
+  // == This is for getting bin string for theta_trk_x, following ICARUS's binning (https://arxiv.org/pdf/2407.12969)
+  if(theta_trk_x < 30.) return "0to30";
+  else if(theta_trk_x < 80.){
+    int tenth = theta_trk_x / 10;
+    TString this_out = Form("%dto%d", tenth * 10, (tenth+1) * 10);
+    return this_out;
+  }
+  else if(theta_trk_x < 85.) return "80to85";
+  else if(theta_trk_x < 90.) return "85to90";
+  else return "Error";
+
+  return "Error";
+}
+
+void Fill_track_plots(TString suffix, double dist_start, double dist_end, const TTreeReaderArray<float>& rr, const TTreeReaderArray<float>& dqdx){
+  // == Fill plots for varaibles related with track
   FillHist("dist_start_" + suffix, dist_start, 1., 1000., 0., 1000.);
   FillHist("dist_end_" + suffix, dist_end, 1., 1000., 0., 1000.);
   for (unsigned i = 0; i < dqdx.GetSize(); i++) {
@@ -115,7 +94,7 @@ void Fill_track_plots(TString suffix, double dist_start, double dist_end, const 
 }
 
 void Fill_hit_plots(TString suffix, const TTreeReaderArray<float>& rr, const TTreeReaderArray<float>& dqdx, const TTreeReaderArray<float>& sp_x, double cos_xy, double cos_yz, double cos_zx, double cos_plus_zprimex, double cos_minus_zprimex){
-
+  // == Fill plots for variables related anguler cut for track selection
   for (unsigned i = 0; i < dqdx.GetSize(); i++) {
     FillHist("cos_xy_vs_dqdx_" + suffix, cos_xy, dqdx[i], 1., 220., -1.1, 1.1, 3000., 0., 3000.);
     FillHist("cos_yz_vs_dqdx_" + suffix, cos_yz, dqdx[i], 1., 220., -1.1, 1.1, 3000., 0., 3000.);
@@ -133,12 +112,12 @@ void Fill_hit_plots(TString suffix, const TTreeReaderArray<float>& rr, const TTr
   }
 }
 
-void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr, const TTreeReaderArray<float>& dqdx, const TTreeReaderArray<float>& sp_x, const TTreeReaderArray<float>& sp_z, const TTreeReaderArray<float>& pitch, double last_x, double cos_plus_zprimex, double cos_minus_zprimex, bool do_ind_ang_cut = false){
-
-  //for (unsigned i = 0; i < dqdx.GetSize(); i++) {
+void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr, const TTreeReaderArray<float>& dqdx, const TTreeReaderArray<float>& sp_x, const TTreeReaderArray<float>& sp_z, const TTreeReaderArray<float>& pitch, double this_c_cal, double last_x, double cos_plus_zprimex, double cos_minus_zprimex, double theta_trk_x_rad, TString theta_trk_x_str, bool do_ind_ang_cut = false){
+  // == Fill plots for recombination fits
   if(dqdx.GetSize() < 1) return;
-  for (unsigned i = 1; i < dqdx.GetSize() - 1; i++) {
-    if(do_ind_ang_cut){
+  for (unsigned i = 1; i < dqdx.GetSize() - 1; i++) { // == Not using first and last hits of a track
+    if(rr[i] < 0.) continue;
+    if(do_ind_ang_cut){ // == angle cut for induction planes
       if(suffix.Contains("plane0")){
         if(sp_x[i] < 0. && fabs(cos_plus_zprimex) > 0.75) continue;
         if(sp_x[i] > 0. && fabs(cos_minus_zprimex) > 0.75) continue;
@@ -150,16 +129,17 @@ void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr
     }
 
     double this_lifetime_corr = Lifetime_Correction(sp_x[i], 100.0);
-    if(isdata) this_lifetime_corr = 1.;
+    if(isdata) this_lifetime_corr = 1.; // == FIXME, for data, do not apply lifetime correction. Should be updated in future to use different lifetime values for MC and data
     double corrected_dqdx = dqdx[i] * this_lifetime_corr;
     FillHist("rr_vs_corr_dqdx_" + suffix, rr[i], corrected_dqdx, 1., 300., 0., 300., 3000., 0., 3000.);
     FillHist("rr_vs_pitch_" + suffix, rr[i], pitch[i], 1., 300., 0., 300., 200., 0., 2.);
+    FillHist("rr_vs_pitch_" + suffix+ "_phi" + theta_trk_x_str, rr[i], pitch[i], 1., 300., 0., 300., 200., 0., 2.);
     FillHist("pitch_" + suffix, pitch[i], 1., 200., 0., 2.);
     FillHist("pitch_x_vs_corr_dqdx_" + suffix, pitch[i], corrected_dqdx, 1., 200., 0., 2., 3000., 0., 3000.);
     if(i == 0) FillHist("last_x_" + suffix, last_x, 1., 500., -250., 250.);
-    
-    if(pitch[i] > 1.) continue;
 
+    if(pitch[i] > 1.) continue;
+    
     double this_KE= muon_sp_range_to_KE -> Eval(rr[i]); // == from rr
 
     double gamma = (this_KE/mass_muon)+1.0;
@@ -175,8 +155,13 @@ void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr
     if(rr[i] < 0.) continue;
 
     FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix, this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
+    FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_phi" + theta_trk_x_str, this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
     //cout << "[Fill_corrected_dqdx_plots] " << i << ", rr : " << rr[i] << ", KE : " << muon_sp_range_to_KE -> Eval(rr[i]) << ", this_kappa : " << this_kappa << ", this_dEdx_MPV : " << this_dEdx_MPV << endl;
 
+    double this_calib_dedx = emb_dedx(corrected_dqdx, theta_trk_x_rad, this_c_cal);
+    FillHist("rr_vs_dedx_" + suffix, rr[i], this_calib_dedx, 1., 2500., 0., 250., 2000., 0., 20.);
+    FillHist("rr_vs_dedx_" + suffix + "_phi" + theta_trk_x_str, rr[i], this_calib_dedx, 1., 2500., 0., 250., 2000., 0., 20.);
+    
     // == Divide into NE, NW, SE and SW
     if(sp_x[i] < 0.){
       if(sp_z[i] > 250.) FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_NE", this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
@@ -186,25 +171,19 @@ void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr
       if(sp_z[i] > 250.) FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_NW", this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
       else FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_SW", this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
     }
-    
   }
 }
-/*
-double Vav_MPV(float rr){
 
-  //mass_muon
-  double this_xi = dEdx.Get_Landau_xi(KE, width, mass);
-  double this_Wmax = dEdx.Get_Wmax(KE, mass);
-  double this_kappa = this_xi / this_Wmax;
-  double this_dEdx_BB = dEdx.dEdx_Bethe_Bloch(KE, mass);
-}
-*/
-void run_YZ_unif(int run_num = 0) {
+void run_dedx_loop_emb(int run_number = 0, double this_c_cal0 = 0.02, double this_c_cal1 = 0.02, double this_c_cal2 = 0.02) {
 
+  c_cal0 = this_c_cal0;
+  c_cal1 = this_c_cal1;
+  c_cal2 = this_c_cal2;
+  
   TString run_number_str = "";
-  if(run_num != 0){
+  run_number_str = TString::Format("%d", run_number);
+  if(run_number > 0){
     isdata = true;
-    run_number_str = TString::Format("%d", run_num);
   }
   
   /////////////////////////////////
@@ -232,7 +211,7 @@ void run_YZ_unif(int run_num = 0) {
     cout << "Exiting [run_recom_loop_emb]" << endl;
     return;
   }
-
+      
   AddFilesToChain(fileListPath, fChain);
 
   TTreeReader myReader(fChain);
@@ -266,9 +245,9 @@ void run_YZ_unif(int run_num = 0) {
   TTreeReaderArray<float> sp_x2(myReader, "trk.hits2.h.sp.x");
   TTreeReaderArray<float> sp_y2(myReader, "trk.hits2.h.sp.y");
   TTreeReaderArray<float> sp_z2(myReader, "trk.hits2.h.sp.z");
-  TTreeReaderValue<float> dirx(myReader, "trk.dir.x"); 
-  TTreeReaderValue<float> diry(myReader, "trk.dir.y");
-  TTreeReaderValue<float> dirz(myReader, "trk.dir.z");
+  TTreeReaderArray<float> dir_x(myReader, "trk.dir.x"); 
+  TTreeReaderArray<float> dir_y(myReader, "trk.dir.y");
+  TTreeReaderArray<float> dir_z(myReader, "trk.dir.z");
 
   TTreeReaderArray<float> true_start_x(myReader, "trk.truth.p.start.x");
   TTreeReaderArray<float> true_start_y(myReader, "trk.truth.p.start.y");
@@ -288,43 +267,26 @@ void run_YZ_unif(int run_num = 0) {
   cout << "N_entries : " << N_entries << endl;
   int current_entry = 0;
 
-  double ADC_med_cut = 1600.; // == https://sbn-docdb.fnal.gov/cgi-bin/sso/RetrieveFile?docid=23472&filename=SBND%20Calib%20Workshop%202021.pdf&version=1
-  double track_length_cut = 15.;
-
   // Loop over all entries of the TTree
-  int N_run = 100000;
-  std::vector<std::vector<std::vector<double>>> dqdx_east(y_bins, std::vector<std::vector<double>>(z_bins)); // == x < 0
-  std::vector<std::vector<std::vector<double>>> dqdx_west(y_bins, std::vector<std::vector<double>>(z_bins)); // == x > 0
-
+  int _run_to = 370000;
   while (myReader.Next()) {
-    //if(current_entry > N_run) break;
+    if(current_entry > _run_to) break;
    
     if(current_entry%100 == 0){
       cout << current_entry << " / " << N_entries << endl;
     }
     current_entry++;
 
-    if(*run == 14480){
-      if(*evt >= 748) continue;
-    }
-    if(*run == 14608){
-      if(*evt >= 9695) continue;
-    }
-    
-    hist_selected -> Fill(*selected);
+    FillHist("selected", *selected, 1., 40, -0.5, 39.5);
 
     double end_meddqdx = Get_EndMediandQdx(rr2, dqdx2);
     FillHist("end_meddqdx", end_meddqdx, 1., 5000., 0., 5000.);
     FillHist(Form("end_meddqdx_selected%d", *selected), end_meddqdx, 1., 5000., 0., 5000.);
-    // == Tracks selected as cathode passing through going
-    if (*selected == 2) {
 
-      //cout << "(*selected == 2)" << endl;
+    // == Tracks selected as stopping
+    if (*selected == 0) {
       
       unsigned N_reco_hits = rr2.GetSize();
-
-      if(N_reco_hits < 3) continue;
-            
       TVector3 this_reco_start(sp_x2[N_reco_hits - 1], sp_y2[N_reco_hits - 1], sp_z2[N_reco_hits - 1]);
       TVector3 this_reco_end(sp_x2[0], sp_y2[0], sp_z2[0]);
       TVector3 this_true_start(true_start_x[0], true_start_y[0], true_start_z[0]);
@@ -343,7 +305,6 @@ void run_YZ_unif(int run_num = 0) {
       double last_y = -999.;
       double last_z = -999.;
 
-      //cout << "get first and last hits" << endl;
       first_x = sp_x2[N_reco_hits - 1];
       first_y = sp_y2[N_reco_hits - 1];
       first_z = sp_z2[N_reco_hits - 1];
@@ -364,91 +325,57 @@ void run_YZ_unif(int run_num = 0) {
       double zprime_minus = zprime_60deg(track_vec.Y(), track_vec.Z(), -1);
       double cos_plus_zprimex = track_vec.X() / (sqrt(pow(track_vec.X(), 2.) + pow(zprime_plus, 2.)));
       double cos_minus_zprimex = track_vec.X() / (sqrt(pow(track_vec.X(), 2.) + pow(zprime_minus, 2.)));
-
-      if(!Is_Edge(first_x, first_y, first_z) || !Is_Edge(last_x, last_y, last_z)) continue; // == through going track
-      if(first_x * last_x < 0.) passing_cathode = true;
-      if(!passing_cathode) continue;
-
-      double thetaxz = acos(*dirz / sqrt(pow(*dirz,2)+pow(*dirx,2)))*180/TMath::Pi();
-      if(*dirx<0) thetaxz = -thetaxz;
-      double thetayz = acos(*dirz / sqrt(pow(*dirz,2)+pow(*diry,2)))*180/TMath::Pi();
-      if(*diry<0) thetayz = -thetayz;
-
-      if(abs(thetaxz)<115&&abs(thetaxz)>65) continue;//Angle
-      if(abs(thetayz)<110&&abs(thetayz)>70) continue;//Angle
+      ROOT::Math::XYZVector x_unit(1.0, 0., 0.);
+      ROOT::Math::XYZVector trk_cross_x = track_vec.Cross(x_unit);
+      double sin_theta_trk_x = sqrt(trk_cross_x.Mag2()) / sqrt(track_vec.Mag2());
+      double theta_trk_x = TMath::ASin(sin_theta_trk_x) * 180. / TMath::Pi(); // == [Deg.]
+      double theta_trk_x_rad = TMath::ASin(sin_theta_trk_x);
+      TString theta_trk_x_str = Get_theta_trk_x_bin_str(theta_trk_x);
+      //cout << "theta_trk_x : " << theta_trk_x << ", theta_trk_x_str : " << theta_trk_x_str << endl;
       
-      if(end_meddqdx > 1500.) continue;
+      if(first_x * last_x < 0.) passing_cathode= true;
+      if(this_reco_trk_len < 60. || !passing_cathode) continue;
 
-      FillHist("end_meddqdx_yz_sel", end_meddqdx, 1., 5000., 0., 5000.);
-      FillHist("this_reco_trk_len", this_reco_trk_len, 1., 1000., 0., 1000.);
-
-      for (size_t i = 0; i < sp_y2.GetSize(); ++i) {
-
-	if(sp_x2[i] < 0 && InVeto_region_eastTPC_C(sp_y2[i], sp_z2[i])) continue;
-	if(sp_x2[i] > 0 && InVeto_region_westTPC_C(sp_y2[i], sp_z2[i])) continue;
-	
-        int y_index = (sp_y2[i] - y_min) / pixel_size;
-        int z_index = (sp_z2[i] - z_min) / pixel_size;
-        if (y_index >= 0 && y_index < y_bins && z_index >= 0 && z_index < z_bins) {
-	  if(sp_x2[i] < 0) dqdx_east[y_index][z_index].push_back(dqdx2[i]);
-	  else dqdx_west[y_index][z_index].push_back(dqdx2[i]);
-        }
+      // == These are the main plots
+      Fill_corrected_dqdx_plots("plane0_trklen_60cm_passing_cathode_coszx", rr0, dqdx0, sp_x0, sp_z0, pitch0, c_cal0, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x_rad, theta_trk_x_str, true);
+      Fill_corrected_dqdx_plots("plane1_trklen_60cm_passing_cathode_coszx", rr1, dqdx1, sp_x1, sp_z1, pitch1, c_cal1, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x_rad, theta_trk_x_str, true);
+      if(fabs(cos_zx) < 0.75){
+	Fill_track_plots("trklen_60cm_passing_cathode_coszx", dist_start, dist_end, rr2, dqdx2);
+	FillHist("theta_trk_x_str_trklen_60cm_passing_cathode_coszx", theta_trk_x, 1., 100., 0., 100.);
+        Fill_corrected_dqdx_plots("plane2_trklen_60cm_passing_cathode_coszx", rr2, dqdx2, sp_x2, sp_z2, pitch2, c_cal2, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x_rad, theta_trk_x_str, true);
       }
+      
+      // == Bellow are for plot approvals
+      /*
+      // == end dqdx median cut shift from 1600 to 1800
+      if(end_meddqdx > 1800.){
+	Fill_corrected_dqdx_plots("plane0_trklen_60cm_passing_cathode_coszx_meddqdx", rr0, dqdx0, sp_x0, sp_z0, pitch0, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x_str, true);
+        Fill_corrected_dqdx_plots("plane1_trklen_60cm_passing_cathode_coszx_meddqdx", rr1, dqdx1, sp_x1, sp_z1, pitch1, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x_str, true);
+        if(fabs(cos_zx) < 0.75) Fill_corrected_dqdx_plots("plane2_trklen_60cm_passing_cathode_coszx_meddqdx", rr2, dqdx2, sp_x2, sp_z2, pitch2, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x_str, true);
+      }
+
+      // == End point away from cathode
+      if(fabs(last_x) > 15. && fabs(last_x) < 185.){
+	Fill_corrected_dqdx_plots("plane0_trklen_60cm_passing_cathode_coszx_cafv", rr0, dqdx0, sp_x0, sp_z0, pitch0, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x_str, true);
+	Fill_corrected_dqdx_plots("plane1_trklen_60cm_passing_cathode_coszx_cafv", rr1, dqdx1, sp_x1, sp_z1, pitch1, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x_str, true);
+	if(fabs(cos_zx) < 0.75) Fill_corrected_dqdx_plots("plane2_trklen_60cm_passing_cathode_coszx_cafv", rr2, dqdx2, sp_x2, sp_z2, pitch2, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x_str, true);
+
+	TString evt_id_str = Form("evt%d_id%d", *evt, *trkid);
+	//cout << "evt_id_str : " << evt_id_str << ", length : " << this_reco_trk_len << " cm" << ", trklen : " << *trklen << ", ts : " << *ts << endl;
+      }
+      */   
     }
   }
 
 
-  vector<double> local_dqdx_medians_east, local_dqdx_medians_west;
-  TH2D* h_yz_median_east = new TH2D("", "", z_bins, z_min, z_max, y_bins, y_min, y_max);
-  TH2D* h_yz_median_west = new TH2D("", "", z_bins, z_min, z_max, y_bins, y_min, y_max);
-  for (int yi = 0; yi < y_bins; ++yi) {
-    for (int zi = 0; zi < z_bins; ++zi) {
-      float local_median_dqdx_east=TMath::Median(dqdx_east[yi][zi].size(),&dqdx_east[yi][zi][0]);
-      float local_median_dqdx_west=TMath::Median(dqdx_west[yi][zi].size(),&dqdx_west[yi][zi][0]);
-      h_yz_median_east -> SetBinContent(zi+1, yi+1, local_median_dqdx_east);
-      h_yz_median_west -> SetBinContent(zi+1, yi+1, local_median_dqdx_west);
-      local_dqdx_medians_east.push_back(local_median_dqdx_east);
-      local_dqdx_medians_west.push_back(local_median_dqdx_west);
-    }
-  }
-
-  double global_median_dqdx_east = TMath::Median(local_dqdx_medians_east.size(), &local_dqdx_medians_east[0]);
-  double global_median_dqdx_west = TMath::Median(local_dqdx_medians_west.size(), &local_dqdx_medians_west[0]);
-  
-  TH2D* h_yz_corr_east = (TH2D*)h_yz_median_east -> Clone();
-  TH2D* h_yz_corr_west = (TH2D*)h_yz_median_west -> Clone();
-  for (int yi = 0; yi < y_bins; ++yi) {
-    for (int zi = 0; zi < z_bins; ++zi) {
-      double this_east_median = h_yz_corr_east -> GetBinContent(zi+1, yi+1);
-      double this_east_corr = global_median_dqdx_east / this_east_median;
-      if(this_east_median < 1e-5) this_east_corr = 0.;
-      h_yz_corr_east -> SetBinContent(zi+1, yi+1, this_east_corr);
-
-      double this_west_median = h_yz_corr_west -> GetBinContent(zi+1, yi+1);
-      double this_west_corr = global_median_dqdx_west /	this_west_median;
-      if(this_west_median < 1e-5) this_west_corr = 0.;
-      h_yz_corr_west ->	SetBinContent(zi+1, yi+1, this_west_corr);
-    }
-  }
-  
   TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
-  TString output_file_name = output_rootfile_dir + "/output_YZ_unif_run_" + run_number_str + ".root";
-  if(!isdata) output_file_name = output_rootfile_dir + "/output_YZ_unif_mc.root";
+  TString output_file_name = output_rootfile_dir + "/output_dedx_loop_emb_run_" + run_number_str + ".root";
+  if(!isdata) output_file_name = output_rootfile_dir + "/output_dedx_loop_emb_mc.root";
   out_rootfile = new TFile(output_file_name, "RECREATE");
   out_rootfile -> cd();
-
+  
   hist_selected -> Write();
   WriteHist();
 
-  h_yz_median_east -> SetName("yz_median_east");
-  h_yz_median_west -> SetName("yz_median_west");
-  h_yz_median_east -> Write();
-  h_yz_median_west -> Write();
-
-  h_yz_corr_east -> SetName("yz_corr_east");
-  h_yz_corr_west -> SetName("yz_corr_west");
-  h_yz_corr_east -> Write();
-  h_yz_corr_west -> Write();
-  
   out_rootfile -> Close();
 }

@@ -13,10 +13,12 @@ double c_cal0 = 0.02;
 double c_cal1 = 0.02;
 double c_cal2 = 0.02;
 
-double Modbox_dedx(double dqdx, double this_c_cal){
+// == EBM par
+double alpha_ebm = 0.904;
+double beta_90 = 0.204;
+double R_ebm = 1.25;
 
-  double alpha = 0.93;
-  double beta = 0.212;
+double Modbox_dedx(double dqdx, double this_c_cal){
 
   double dedx = ( exp( (beta * dqdx)/(29449.153 * this_c_cal) ) - alpha) / (1.4388489 * beta);
 

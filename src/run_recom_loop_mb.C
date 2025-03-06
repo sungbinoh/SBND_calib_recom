@@ -8,6 +8,7 @@
 #include "Math/Vector3D.h"
 #include "BetheBloch.h"
 
+bool isdata = false;
 TSpline3 * muon_sp_range_to_KE = Get_sp_range_KE(mass_muon);
 
 double zprime_60deg(double y, double z, int pm = 1){
@@ -87,7 +88,7 @@ void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr
       }
     }
 
-    double this_lifetime_corr = Lifetime_Correction(sp_x[i], 10.0);
+    double this_lifetime_corr = Lifetime_Correction(sp_x[i], 100.0);
     if(isdata) this_lifetime_corr = 1.;
     double corrected_dqdx = dqdx[i] * this_lifetime_corr;
     FillHist("rr_vs_corr_dqdx_" + suffix, rr[i], corrected_dqdx, 1., 300., 0., 300., 3000., 0., 3000.);
@@ -96,6 +97,8 @@ void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr
     FillHist("pitch_x_vs_corr_dqdx_" + suffix, pitch[i], corrected_dqdx, 1., 200., 0., 2., 3000., 0., 3000.);
     if(i == 0) FillHist("last_x_" + suffix, last_x, 1., 500., -250., 250.);
     
+    if(pitch[i] > 1.) continue;
+
     double this_KE= muon_sp_range_to_KE -> Eval(rr[i]); // == from rr
 
     double gamma = (this_KE/mass_muon)+1.0;
@@ -135,13 +138,12 @@ double Vav_MPV(float rr){
   double this_dEdx_BB = dEdx.dEdx_Bethe_Bloch(KE, mass);
 }
 */
-void run_recom_loop(int run_num = 0) {
+void run_recom_loop_mb(int run_num = 0) {
 
-  bool isdata = false;
-  TString run_str = "";
+  TString run_number_str = "";
   if(run_num != 0){
     isdata = true;
-    run_str = TString::Format("%d", run_num);
+    run_number_str = TString::Format("%d", run_num);
   }
   
   /////////////////////////////////
@@ -156,10 +158,20 @@ void run_recom_loop(int run_num = 0) {
   // Open the file containing the tree
   TChain *fChain = new TChain("caloskim/TrackCaloSkim");
   TString input_file_dir = getenv("DATA_PATH");
-  //TString fileListPath = input_file_dir + "/sample_list/list_MCP2023B_corsika_1Dsim_1Dreco.txt";
-  TString fileListPath = input_file_dir + "/sample_list/list_run_" + run_str + "_local.txt";
-  if(!isdata) fileListPath = input_file_dir + "/sample_list/list_2023B_GENIE_CV_local.txt";
+  TString sample_list_dir = getenv("SAMPLE_PATH");
+  TString sample_list_label = getenv("FILELIST_LABEL");
+
+  TString fileListPath = sample_list_dir + "/list" + sample_list_label + run_number_str + ".txt";
+  if(!isdata) fileListPath = sample_list_dir + "/calib_ntuple_moon_v10_04_1.list";
   cout << "Opening : " << fileListPath << endl;
+  // Check if the file exists
+  std::ifstream file(fileListPath.Data());  // Convert TString to const char*
+  if (!file) {
+    cout << "File does not exist: " << fileListPath << endl;
+    cout << "Exiting [run_recom_loop_emb]" << endl;
+    return;
+  }
+
   AddFilesToChain(fileListPath, fChain);
 
   TTreeReader myReader(fChain);
@@ -317,24 +329,22 @@ void run_recom_loop(int run_num = 0) {
 
       // == Track length 60 cm cut
       if(this_reco_trk_len < 60. || !passing_cathode) continue;
+      /*
       Fill_track_plots("plane0_trklen_60cm_passing_cathode", dist_start, dist_end, rr0, dqdx0);
       Fill_track_plots("plane1_trklen_60cm_passing_cathode", dist_start, dist_end, rr1, dqdx1);
       Fill_track_plots("plane2_trklen_60cm_passing_cathode", dist_start, dist_end, rr2, dqdx2);
       Fill_hit_plots("plane0_trklen_60cm_passing_cathode", rr0, dqdx0, sp_x0, cos_xy, cos_yz, cos_zx, cos_plus_zprimex, cos_minus_zprimex);
       Fill_hit_plots("plane1_trklen_60cm_passing_cathode", rr1, dqdx1, sp_x1, cos_xy, cos_yz, cos_zx, cos_plus_zprimex, cos_minus_zprimex);
       Fill_hit_plots("plane2_trklen_60cm_passing_cathode", rr2, dqdx2, sp_x2, cos_xy, cos_yz, cos_zx, cos_plus_zprimex, cos_minus_zprimex);
-
       Fill_corrected_dqdx_plots("plane2_trklen_60cm_passing_cathode", rr2, dqdx2, sp_x2, sp_z2, pitch2, last_x, cos_plus_zprimex, cos_minus_zprimex, true);
+      */
       if(fabs(cos_zx) < 0.75){
+	Fill_track_plots("trklen_60cm_passing_cathode_coszx", dist_start, dist_end, rr2, dqdx2);
 	Fill_corrected_dqdx_plots("plane2_trklen_60cm_passing_cathode_coszx", rr2, dqdx2, sp_x2, sp_z2, pitch2, last_x, cos_plus_zprimex, cos_minus_zprimex, true);
       }
-      Fill_corrected_dqdx_plots("plane0_trklen_60cm_passing_cathode", rr0, dqdx0, sp_x0, sp_z0, pitch0, last_x, cos_plus_zprimex, cos_minus_zprimex, false);
-      Fill_corrected_dqdx_plots("plane1_trklen_60cm_passing_cathode", rr1, dqdx1, sp_x1, sp_z1, pitch1, last_x, cos_plus_zprimex, cos_minus_zprimex, false);
       Fill_corrected_dqdx_plots("plane0_trklen_60cm_passing_cathode_coszx", rr0, dqdx0, sp_x0, sp_z0, pitch0, last_x, cos_plus_zprimex, cos_minus_zprimex, true);
       Fill_corrected_dqdx_plots("plane1_trklen_60cm_passing_cathode_coszx", rr1, dqdx1, sp_x1, sp_z1, pitch1, last_x, cos_plus_zprimex, cos_minus_zprimex, true);
       
-      //if(fabs(cos_zx) > 0.75) continue;
-      if(fabs(cos_zx) < 0.75) Fill_track_plots("trklen_60cm_passing_cathode_coszx", dist_start, dist_end, rr2, dqdx2);
 
       // == end dqdx median cut shift from 1600 to 1800
       if(end_meddqdx > 1800.){
@@ -352,15 +362,16 @@ void run_recom_loop(int run_num = 0) {
 	TString evt_id_str = Form("evt%d_id%d", *evt, *trkid);
 	//cout << "evt_id_str : " << evt_id_str << ", length : " << this_reco_trk_len << " cm" << ", trklen : " << *trklen << ", ts : " << *ts << endl;
       }
+
     }
   }
 
   TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
-  TString output_file_name = output_rootfile_dir + "/output_recom_" + run_str + "_test.root";
-  if(!isdata) output_file_name = output_rootfile_dir + "/output_recom_2024B_GENIE_CV.root";
+  TString output_file_name = output_rootfile_dir + "/output_recom_loop_mb_run_" + run_number_str + ".root";
+  if(!isdata) output_file_name = output_rootfile_dir + "/output_recom_loop_mb_mc.root";
   out_rootfile = new TFile(output_file_name, "RECREATE");
   out_rootfile -> cd();
-  
+
   hist_selected -> Write();
   WriteHist();
 

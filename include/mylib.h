@@ -104,6 +104,22 @@ double MCS_Get_HL_Sigma(double segment_size, double P, double mass){
   return out;
 }
 
+// == YZ unif selection
+bool Is_Edge(float x, float y, float z){   // FV
+  bool res = false;
+  if(abs(x)>190) res = true;
+  if(abs(y)>190) res = true;
+  if(z<10 || z>490) res = true;
+  return res;
+}
+
+bool Is_EdgeYZ(float y, float z){
+  bool res = false;
+  if(abs(y)>195) res = true;
+  if(z<5 || z>495) res = true;
+  return res;
+}
+
 vector<double> vx, vy, vexl, vexh, veyl, veyh;
 
 double Get_Mean_in_range(TH1D *hist, double x_min, double x_max){

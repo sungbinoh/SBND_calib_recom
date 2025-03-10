@@ -466,6 +466,7 @@ void run_mcs_loop(int run_number = 0) {
       
       if(first_x * last_x < 0.) passing_cathode= true;
       if(this_reco_trk_len < 100. || !passing_cathode) continue;
+      if(fabs(cos_zx) > 0.75) continue;
 
       vector<size_t> breakpoints;
       vector<float> segradlengths;
@@ -493,12 +494,14 @@ void run_mcs_loop(int run_number = 0) {
 	    dtheta.push_back(-999.);
 	  }
 	  else {
-	  */ 
-	  cout << Form("before rot: pcdir0 = (%f, %f, %f)", pcdir0.X(), pcdir0.Y(), pcdir0.Z());
+	  */
+	  //cout << Form("before rot: pcdir0 = (%f, %f, %f)", pcdir0.X(), pcdir0.Y(), pcdir0.Z()) << endl;
 	    TVector3 rotated_pcdir0 = RotateToZaxis(pcdir0, pcdir0);
-	    cout << Form("after rot 0 0 : pcdir0 = (%f, %f, %f)", pcdir0.X(), pcdir0.Y(), pcdir0.Z());
+            //cout << Form("after rot 0 0 : pcdir0 = (%f, %f, %f)", pcdir0.X(), pcdir0.Y(), pcdir0.Z()) << endl;
+	    //cout << Form("after rot 0 0 : rotated_pcdir0 = (%f, %f, %f)", rotated_pcdir0.X(), rotated_pcdir0.Y(), rotated_pcdir0.Z()) << endl;
 	    TVector3 rotated_pcdir1 = RotateToZaxis(pcdir0, pcdir1);
-	    cout << Form("after rot 0 1 : pcdir0 = (%f, %f, %f)", pcdir0.X(), pcdir0.Y(), pcdir0.Z());
+            //cout << Form("after rot 0 1 : pcdir0 = (%f, %f, %f)", pcdir0.X(), pcdir0.Y(), pcdir0.Z()) << endl;
+	    //cout << Form("after rot 0 0 : rotated_pcdir1 = (%f, %f, %f)", rotated_pcdir1.X(), rotated_pcdir1.Y(), rotated_pcdir1.Z()) << endl;
 	    double theta_yz = 1000. * TMath::ATan(rotated_pcdir1.Y() / rotated_pcdir1.Z());
 	    double theta_xz = 1000. * TMath::ATan(rotated_pcdir1.X() / rotated_pcdir1.Z());
 	    double theta_3D = 1000. * rotated_pcdir1.Theta();

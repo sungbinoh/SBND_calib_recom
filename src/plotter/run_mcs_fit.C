@@ -71,14 +71,13 @@ void Write_1D_hist(TH1D *in, TString outname, TString var_str, TString suffix, T
     double init_area = in -> Integral() * 0.05 * bin_width;
     double fit_x_min = this_mean - 1.8  * this_stddev;
     double fit_x_max = this_mean + 1.8 * this_stddev;
-    cout << "init_area: " << init_area << ", this_stddev: " << this_stddev << ", fit_x_min: " << fit_x_min << ", fit_x_max: " << fit_x_max << endl;
+    //cout << "init_area: " << init_area << ", this_stddev: " << this_stddev << ", fit_x_min: " << fit_x_min << ", fit_x_max: " << fit_x_max << endl;
 
     TF1 *this_gaus_fit_1st = new TF1("fit_gaus_1st", "gaus", fit_x_min, fit_x_max);
     this_gaus_fit_1st -> SetParameters(init_area, this_mean, this_stddev);
     in_clone -> Fit(this_gaus_fit_1st, "RBOSQN", "", fit_x_min, fit_x_max);
     fit_x_min = this_gaus_fit_1st -> GetParameter(1) - 2.2 * this_gaus_fit_1st -> GetParameter(2);
     fit_x_max =	this_gaus_fit_1st -> GetParameter(1) + 2.2 * this_gaus_fit_1st -> GetParameter(2);
-
     
     TF1 *this_gaus_fit = new TF1("fit_gaus", "gaus", fit_x_min, fit_x_max);
     this_gaus_fit -> SetParLimits(2, 0., 100.);

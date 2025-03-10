@@ -69,12 +69,20 @@ void Write_1D_hist(TH1D *in, TString outname, TString var_str, TString suffix, T
     double this_stddev = in -> GetStdDev();
     double bin_width = in -> GetBinWidth(1);
     double init_area = in -> Integral() * 0.05 * bin_width;
-    double fit_x_min = this_mean - 2.0 * this_stddev;
-    double fit_x_max = this_mean + 2.0 * this_stddev;
-    //cout << "fit_x_min: " << fit_x_min << ", fit_x_max: " << fit_x_max << endl;
+    double fit_x_min = this_mean - 1.8  * this_stddev;
+    double fit_x_max = this_mean + 1.8 * this_stddev;
+    cout << "init_area: " << init_area << ", this_stddev: " << this_stddev << ", fit_x_min: " << fit_x_min << ", fit_x_max: " << fit_x_max << endl;
+
+    TF1 *this_gaus_fit_1st = new TF1("fit_gaus_1st", "gaus", fit_x_min, fit_x_max);
+    this_gaus_fit_1st -> SetParameters(init_area, this_mean, this_stddev);
+    in_clone -> Fit(this_gaus_fit_1st, "RBOSQN", "", fit_x_min, fit_x_max);
+    fit_x_min = this_gaus_fit_1st -> GetParameter(1) - 2.2 * this_gaus_fit_1st -> GetParameter(2);
+    fit_x_max =	this_gaus_fit_1st -> GetParameter(1) + 2.2 * this_gaus_fit_1st -> GetParameter(2);
+
     
     TF1 *this_gaus_fit = new TF1("fit_gaus", "gaus", fit_x_min, fit_x_max);
-    this_gaus_fit -> SetParameters(init_area, this_mean, this_stddev);
+    this_gaus_fit -> SetParLimits(2, 0., 100.);
+    this_gaus_fit -> SetParameters(this_gaus_fit_1st -> GetParameter(0), this_gaus_fit_1st -> GetParameter(1), this_gaus_fit_1st -> GetParameter(2));
     in_clone -> Fit(this_gaus_fit, "RBOSQN", "", fit_x_min, fit_x_max);
     
     double this_const = this_gaus_fit -> GetParameter(0);
@@ -380,12 +388,23 @@ void run_mcs_fit(int run_num = 0){
     1040., 1080.
   };
 
+  // == for small stat MC
+  /*
   int rebin_2d_angle_muon[] = {
     20, 10, 10, 10, 10,
     10,	10, 10,	10, 10,
     10, 10, 10, 10, 10,
     10, 10, 10, 10, 10,
     10, 10, 
+  };
+  */
+  // == for large stat
+  int rebin_2d_angle_muon[] = {
+    5, 5, 5, 5, 5,
+    5, 5, 5, 5,	5,
+    5, 5, 5, 5,	5,
+    5, 5, 5, 5,	5,
+    5, 5,
   };
 
   TString filename = "output_mcs_loop_run_" + run_str + ".root";

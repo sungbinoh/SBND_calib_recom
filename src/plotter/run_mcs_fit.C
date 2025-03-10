@@ -69,8 +69,8 @@ void Write_1D_hist(TH1D *in, TString outname, TString var_str, TString suffix, T
     double this_stddev = in -> GetStdDev();
     double bin_width = in -> GetBinWidth(1);
     double init_area = in -> Integral() * 0.05 * bin_width;
-    double fit_x_min = this_mean - 2.0 * this_stddev;
-    double fit_x_max = this_mean + 2.0 * this_stddev;
+    double fit_x_min = this_mean - 1.8 * this_stddev;
+    double fit_x_max = this_mean + 1.8 * this_stddev;
     //cout << "fit_x_min: " << fit_x_min << ", fit_x_max: " << fit_x_max << endl;
     
     TF1 *this_gaus_fit = new TF1("fit_gaus", "gaus", fit_x_min, fit_x_max);

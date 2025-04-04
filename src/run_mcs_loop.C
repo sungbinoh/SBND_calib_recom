@@ -8,9 +8,15 @@
 #include "Math/Vector3D.h"
 #include "BetheBloch.h"
 
+BetheBloch *muon_BB = new BetheBloch(13);
 bool isdata = false;
-TSpline3 * muon_sp_range_to_KE = Get_sp_range_KE(mass_muon);
-
+/*
+std::map< int, BetheBloch* > map_BB;
+map_BB[13] = new BetheBloch(13);
+map_BB[211] = new BetheBloch(211);
+map_BB[321] = new BetheBloch(321);
+map_BB[2212] = new BetheBloch(2212);
+*/
 double muon_ek2p(double ek){
 
   double out = pow(pow(ek + mass_muon, 2.) - mass_muon * mass_muon, 0.5);
@@ -253,68 +259,6 @@ TString Get_theta_trk_x_bin_str(double theta_trk_x){
   return "Error";
 }
 
-void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr, const TTreeReaderArray<float>& dqdx, const TTreeReaderArray<float>& sp_x, const TTreeReaderArray<float>& sp_z, const TTreeReaderArray<float>& pitch, double last_x, double cos_plus_zprimex, double cos_minus_zprimex, double theta_trk_x, TString theta_trk_x_str, bool do_ind_ang_cut = false){
-  // == Fill plots for recombination fits
-  if(dqdx.GetSize() < 1) return;
-  for (unsigned i = 1; i < dqdx.GetSize() - 1; i++) { // == Not using first and last hits of a track
-    if(rr[i] < 0.) continue;
-    if(do_ind_ang_cut){ // == angle cut for induction planes
-      if(suffix.Contains("plane0")){
-        if(sp_x[i] < 0. && fabs(cos_plus_zprimex) > 0.75) continue;
-        if(sp_x[i] > 0. && fabs(cos_minus_zprimex) > 0.75) continue;
-      }
-      if(suffix.Contains("plane1")){
-        if(sp_x[i] < 0. && fabs(cos_minus_zprimex) > 0.75) continue;
-        if(sp_x[i] > 0. && fabs(cos_plus_zprimex) > 0.75) continue;
-      }
-    }
-
-    double this_lifetime_corr = Lifetime_Correction(sp_x[i], 100.0);
-    if(isdata) this_lifetime_corr = 1.; // == FIXME, for data, do not apply lifetime correction. Should be updated in future to use different lifetime values for MC and data
-    double corrected_dqdx = dqdx[i] * this_lifetime_corr;
-    double this_dqdx_bias_corr = dqdx_scale_correction_angle(theta_trk_x);
-    //cout << "corrected_dqdx: " << corrected_dqdx << endl;
-    corrected_dqdx *= this_dqdx_bias_corr;
-    //cout << "bias corrected_dqdx: " << corrected_dqdx << endl;
-
-    FillHist("rr_vs_corr_dqdx_" + suffix, rr[i], corrected_dqdx, 1., 300., 0., 300., 3000., 0., 3000.);
-    FillHist("rr_vs_pitch_" + suffix, rr[i], pitch[i], 1., 300., 0., 300., 200., 0., 2.);
-    FillHist("pitch_" + suffix, pitch[i], 1., 200., 0., 2.);
-    FillHist("pitch_x_vs_corr_dqdx_" + suffix, pitch[i], corrected_dqdx, 1., 200., 0., 2., 3000., 0., 3000.);
-    if(i == 0) FillHist("last_x_" + suffix, last_x, 1., 500., -250., 250.);
-
-    if(pitch[i] > 1.) continue;
-    
-    double this_KE= muon_sp_range_to_KE -> Eval(rr[i]); // == from rr
-
-    double gamma = (this_KE/mass_muon)+1.0;
-    double beta = TMath::Sqrt(1-(1.0/(gamma*gamma)));
-    double this_xi = Landau_xi(this_KE, pitch[i], mass_muon);
-    double this_Wmax = Get_Wmax(this_KE, mass_muon);
-    double this_kappa = this_xi / this_Wmax;
-    double this_dEdx_BB = meandEdx(this_KE, mass_muon);
-    double par[5] = {this_kappa, beta * beta, this_xi, this_dEdx_BB, pitch[i]};
-    TF1 * this_dEdx_PDF = dEdx_PDF(par);
-    double this_dEdx_MPV = this_dEdx_PDF -> GetMaximumX();
-
-    if(rr[i] < 0.) continue;
-    
-    FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix, this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
-    FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_phi" + theta_trk_x_str, this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
-    //cout << "[Fill_corrected_dqdx_plots] " << i << ", rr : " << rr[i] << ", KE : " << muon_sp_range_to_KE -> Eval(rr[i]) << ", this_kappa : " << this_kappa << ", this_dEdx_MPV : " << this_dEdx_MPV << endl;
-
-    // == Divide into NE, NW, SE and SW
-    if(sp_x[i] < 0.){
-      if(sp_z[i] > 250.) FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_NE", this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
-      else FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_SE", this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
-    }
-    else{
-      if(sp_z[i] > 250.) FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_NW", this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
-      else FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_SW", this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
-    }
-  }
-}
-
 void run_mcs_loop(int run_number = 0) {
 
   TString run_number_str = "";
@@ -333,6 +277,8 @@ void run_mcs_loop(int run_number = 0) {
   TString sample_list_label = getenv("FILELIST_LABEL");
 
   TString fileListPath = sample_list_dir + "/list" + sample_list_label + run_number_str + ".txt";
+  fileListPath = sample_list_dir + "/list_2025A_GoldenRun_calib_ntuple_sungbino.txt";
+
   if(!isdata) fileListPath = sample_list_dir + "/calib_ntuple_moon_v10_04_1.list";
   //if(!isdata) fileListPath = sample_list_dir + "/calib_ntuple_moon_v10_04_1_single_file.list";
   cout << "Opening : " << fileListPath << endl;
@@ -513,7 +459,7 @@ void run_mcs_loop(int run_number = 0) {
 	    dtheta.push_back(dt);
 	    double this_rr = rr2[breakpoints[p-1]]; // -- momentuem before the track enter the segment
 	    //double this_rr = rr2[breakpoints[p]]; // -- momentum after the track travelled the segment
-	    double this_KE_CSDA = muon_sp_range_to_KE -> Eval(this_rr);
+	    double this_KE_CSDA = muon_BB -> KEFromRangeSpline(this_rr); //muon_sp_range_to_KE -> Eval(this_rr);
 	    double this_P_CSDA = muon_ek2p(this_KE_CSDA);
 	    pmuon_vec.push_back(this_P_CSDA);
 	}

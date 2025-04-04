@@ -17,7 +17,7 @@ elif [ "$MY_OS_REL" = "Scientific Linux" ]; then
 
   #Check if PRODUCTS is undefined -- if so, set up relevant ups area
   if [[ -z $PRODUCTS ]]; then
-    if [[ $HOSTNAME == "sbndgpvm"* ]]; then
+    if [[ $HOSTNAME == "sbnd"* ]]; then
       echo "SBND"
       MY_EXPERIMENT="sbnd"
     elif [[ $HOSTNAME == "icarusgpvm"* ]]; then
@@ -30,6 +30,7 @@ elif [ "$MY_OS_REL" = "Scientific Linux" ]; then
 
   source /cvmfs/${MY_EXPERIMENT}.opensciencegrid.org/products/${MY_EXPERIMENT}/setup_${MY_EXPERIMENT}.sh
   setup root v6_28_12 -q e26:p3915:prof 
+  setup xrootd v5_5_5a -q e26:p3915:prof
   setup cmake v3_27_4
 else
   echo "WARNING: Seems you are using a private machine to run this repo"
@@ -38,10 +39,9 @@ fi
 
 #### -- Calib ntuple list dir
 export SAMPLE_PATH=$DATA_PATH/sample_list/sungbinosx/
-if [[ `hostname` == *"gpvm"* ]]
+if [[ `hostname` == *"sbnd"* ]]
 then
     source /cvmfs/larsoft.opensciencegrid.org/spack-packages/setup-env.sh
-    spack load root@6.28.12
     export SAMPLE_PATH=$DATA_PATH/sample_list/sbndgpvm/
 fi
 

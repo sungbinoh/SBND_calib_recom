@@ -32,7 +32,6 @@ map<TString, std::vector<double> > map_bin_vector;
 map<TString, std::vector<TString> > map_sample_names;
 map<TString, std::vector<double> > map_syst_array;
 map<TString, std::vector<double> > map_syst_table;
-
 double v_drift = 156.267;
 double mass_muon = 105.658; // [MeV]
 double mass_pion = 139.57; // [MeV]

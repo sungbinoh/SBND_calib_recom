@@ -9,7 +9,7 @@
 #include "BetheBloch.h"
 
 bool isdata = false;
-TSpline3 * muon_sp_range_to_KE = Get_sp_range_KE(mass_muon);
+BetheBloch *muon_BB = new BetheBloch(13);
 
 double dqdx_scale_correction_angle(double theta){
 
@@ -80,7 +80,7 @@ void Fill_track_plots(TString suffix, double dist_start, double dist_end, const 
   FillHist("dist_start_" + suffix, dist_start, 1., 1000., 0., 1000.);
   FillHist("dist_end_" + suffix, dist_end, 1., 1000., 0., 1000.);
   for (unsigned i = 0; i < dqdx.GetSize(); i++) {
-    FillHist("rr_vs_dqdx_" + suffix, rr[i], dqdx[i], 1., 300., 0., 300., 3000., 0., 3000.);
+    FillHist("rr_vs_dqdx_" + suffix, rr[i], dqdx[i], 1., 300., 0., 300., 5000., 0., 5000.);
   }
 }
 
@@ -127,27 +127,27 @@ void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr
     corrected_dqdx *= this_dqdx_bias_corr;
     //cout << "bias corrected_dqdx: " << corrected_dqdx << endl;
 
-    FillHist("rr_vs_corr_dqdx_" + suffix, rr[i], corrected_dqdx, 1., 300., 0., 300., 3000., 0., 3000.);
+    FillHist("rr_vs_corr_dqdx_" + suffix, rr[i], corrected_dqdx, 1., 300., 0., 300., 5000., 0., 5000.);
     FillHist("rr_vs_pitch_" + suffix, rr[i], pitch[i], 1., 300., 0., 300., 200., 0., 2.);
     FillHist("pitch_" + suffix, pitch[i], 1., 200., 0., 2.);
     FillHist("pitch_x_vs_corr_dqdx_" + suffix, pitch[i], corrected_dqdx, 1., 200., 0., 2., 3000., 0., 3000.);
     if(i == 0) FillHist("last_x_" + suffix, last_x, 1., 500., -250., 250.);
 
     if(pitch[i] > 1.) continue;
+    if(rr[i] < 0.) continue;
     
-    double this_KE= muon_sp_range_to_KE -> Eval(rr[i]); // == from rr
+    double this_KE= muon_BB -> KEFromRangeSpline(rr[i]); // == from rr
 
     double gamma = (this_KE/mass_muon)+1.0;
     double beta = TMath::Sqrt(1-(1.0/(gamma*gamma)));
-    double this_xi = Landau_xi(this_KE, pitch[i], mass_muon);
-    double this_Wmax = Get_Wmax(this_KE, mass_muon);
+    double this_xi = muon_BB -> Landau_xi(this_KE, pitch[i]);
+    double this_Wmax = muon_BB -> Get_Wmax(this_KE);
     double this_kappa = this_xi / this_Wmax;
-    double this_dEdx_BB = meandEdx(this_KE, mass_muon);
+    double this_dEdx_BB = muon_BB -> meandEdx(this_KE);
     double par[5] = {this_kappa, beta * beta, this_xi, this_dEdx_BB, pitch[i]};
-    TF1 * this_dEdx_PDF = dEdx_PDF(par);
+    TF1 * this_dEdx_PDF = muon_BB -> dEdx_PDF(this_KE, pitch[i]);
     double this_dEdx_MPV = this_dEdx_PDF -> GetMaximumX();
-
-    if(rr[i] < 0.) continue;
+    delete this_dEdx_PDF;
     
     FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix, this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
     FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_phi" + theta_trk_x_str, this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
@@ -189,7 +189,8 @@ void run_recom_loop_emb(int run_number = 0) {
   TString sample_list_label = getenv("FILELIST_LABEL");
 
   TString fileListPath = sample_list_dir + "/list" + sample_list_label + run_number_str + ".txt";
-  if(!isdata) fileListPath = sample_list_dir + "/calib_ntuple_moon_v10_04_1.list";
+  if(!isdata) fileListPath = sample_list_dir + "/list_2024B_MC_calib_ntuple.txt";
+  //if(!isdata) fileListPath = sample_list_dir + "/list_2025A_Sprint25Dev_MC_bnbcosmics_calib_ntuple.txt";
   cout << "Opening : " << fileListPath << endl;
   // Check if the file exists
   std::ifstream file(fileListPath.Data());  // Convert TString to const char*
@@ -255,7 +256,7 @@ void run_recom_loop_emb(int run_number = 0) {
   int current_entry = 0;
 
   // Loop over all entries of the TTree
-  int _run_to = 370000;
+  int _run_to = 300000;
   //_run_to = 1000;
   while (myReader.Next()) {
     if(current_entry > _run_to) break;
@@ -404,7 +405,8 @@ void run_recom_loop_emb(int run_number = 0) {
 
   TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
   TString output_file_name = output_rootfile_dir + "/output_recom_loop_emb_run_" + run_number_str + ".root";
-  if(!isdata) output_file_name = output_rootfile_dir + "/output_recom_loop_emb_mc.root";
+  //if(!isdata) output_file_name = output_rootfile_dir + "/output_recom_loop_emb_mc_2025a_spring.root";
+  if(!isdata) output_file_name = output_rootfile_dir + "/output_recom_loop_emb_mc_2024b.root";
   out_rootfile = new TFile(output_file_name, "RECREATE");
   out_rootfile -> cd();
   

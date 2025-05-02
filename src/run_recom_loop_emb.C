@@ -123,10 +123,9 @@ void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr
     if(isdata) this_lifetime_corr = 1.; // == FIXME, for data, do not apply lifetime correction. Should be updated in future to use different lifetime values for MC and data
     double corrected_dqdx = dqdx[i] * this_lifetime_corr;
     double this_dqdx_bias_corr = dqdx_scale_correction_angle(theta_trk_x);
-    //cout << "corrected_dqdx: " << corrected_dqdx << endl;
+    this_dqdx_bias_corr = 1.; // == no correction
     corrected_dqdx *= this_dqdx_bias_corr;
-    //cout << "bias corrected_dqdx: " << corrected_dqdx << endl;
-
+    
     FillHist("rr_vs_corr_dqdx_" + suffix, rr[i], corrected_dqdx, 1., 300., 0., 300., 5000., 0., 5000.);
     FillHist("rr_vs_pitch_" + suffix, rr[i], pitch[i], 1., 300., 0., 300., 200., 0., 2.);
     FillHist("pitch_" + suffix, pitch[i], 1., 200., 0., 2.);
@@ -165,6 +164,52 @@ void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr
   }
 }
 
+void Fill_true_hit_plots(TString suffix, const TTreeReaderArray<float>& true_rr, const TTreeReaderArray<float>& true_nelec, const TTreeReaderArray<float>& true_pitch){
+
+  if(true_rr.GetSize() < 1) return;
+
+  for (unsigned i = 1; i < true_rr.GetSize() - 1; i++) {
+    double this_rr = true_rr[i];
+    double this_pitch = true_pitch[i];
+    if(this_rr < 0. || this_pitch < 0.) continue;
+    double this_dqdx = true_nelec[i] / this_pitch;
+    this_dqdx = this_dqdx / (1000.);
+    //cout << "rr: " << this_rr << ", true_pitch: " << this_pitch << ", true_nelec: " << true_nelec[i] << ", this_dqdx: " << this_dqdx << endl;
+    FillHist("true_rr_vs_true_dqdx_" + suffix, this_rr, this_dqdx, 1., 300., 0., 300., 5000., 0., 500.);
+    
+  }
+}
+
+void Fill_charge_reco_res_plots(TString suffix, const TTreeReaderArray<float>& dq, const TTreeReaderArray<float>& width, const TTreeReaderArray<float>& dele, const TTreeReaderArray<float>& rr, TString theta_zx_str){
+
+  if(dq.GetSize() < 1) return;
+
+  for (unsigned i = 1; i < dq.GetSize() - 1; i++) {
+    if(rr[i] < 0.) continue;
+    double this_dq = dq[i];
+    double this_c_cal = 2.019e-2;
+    double this_qd_corr = dq[i] / this_c_cal;
+
+    double this_dele = dele[i];
+    this_dele = this_dele * 0.02;
+    double this_bias = (this_dq - this_dele) / this_dele;
+    double this_bias_corr = (this_qd_corr - (this_dele / 0.02)) / (this_dele / 0.02);
+
+    double this_rr = rr[i];
+    FillHist("rr_vs_dqres_" + suffix, this_rr, this_bias, 1., 300., 0., 300., 2000., -10., 10.);
+    FillHist("rr_vs_truedq_" + suffix, this_rr, this_dele, 1., 300., 0., 300., 5000., 0., 5000.);
+    FillHist("rr_vs_dqres_" + suffix + "_phi" + theta_zx_str, this_rr, this_bias, 1., 300., 0., 300., 2000., -10., 10.);
+    FillHist("rr_vs_truedq_" + suffix + "_phi" + theta_zx_str, this_rr, this_dele, 1., 300., 0., 300., 5000., 0., 5000.);
+
+    FillHist("rr_vs_dqres_corr_" + suffix, this_rr, this_bias_corr, 1., 300., 0., 300., 2000., -10., 10.);
+    FillHist("rr_vs_dqres_corr_" + suffix + "_phi" + theta_zx_str, this_rr, this_bias_corr, 1., 300., 0., 300., 2000., -10., 10.);
+
+    double this_width = width[i];
+    //cout << "this_width: " << this_width << endl;
+    FillHist("rr_vs_width_" + suffix, this_rr, this_width, 1., 300., 0., 300., 1000., 0., 10.);
+  }
+}
+
 void run_recom_loop_emb(int run_number = 0) {
 
   TString run_number_str = "";
@@ -189,8 +234,12 @@ void run_recom_loop_emb(int run_number = 0) {
   TString sample_list_label = getenv("FILELIST_LABEL");
 
   TString fileListPath = sample_list_dir + "/list" + sample_list_label + run_number_str + ".txt";
-  if(!isdata) fileListPath = sample_list_dir + "/list_2024B_MC_calib_ntuple.txt";
   //if(!isdata) fileListPath = sample_list_dir + "/list_2025A_Sprint25Dev_MC_bnbcosmics_calib_ntuple.txt";
+  //if(!isdata) fileListPath = sample_list_dir + "/list_2024B_MC_calib_ntuple.txt";
+
+  if(!isdata) fileListPath = sample_list_dir + "/list_2025A_Sprint25Dev_data_calib_ntuple_sungbino.txt";
+  //if(!isdata) fileListPath = sample_list_dir + "/list_2025A_GoldenRun_calib_ntuple_sungbino.txt";
+  isdata = true;
   cout << "Opening : " << fileListPath << endl;
   // Check if the file exists
   std::ifstream file(fileListPath.Data());  // Convert TString to const char*
@@ -215,6 +264,11 @@ void run_recom_loop_emb(int run_number = 0) {
   TTreeReaderArray<float> dqdx0(myReader, "trk.hits0.dqdx"); // hits on plane 0 (Induction)
   TTreeReaderArray<float> dqdx1(myReader, "trk.hits1.dqdx"); // hits on plane 1 (Induction)
   TTreeReaderArray<float> dqdx2(myReader, "trk.hits2.dqdx"); // hits on plane 2 (Collection)
+  TTreeReaderArray<float> dq2(myReader, "trk.hits2.h.integral");
+  TTreeReaderArray<float> width2(myReader, "trk.hits2.h.width");
+
+  TTreeReaderArray<float> dele2(myReader, "trk.hits2.h.truth.nelec");
+  
   TTreeReaderArray<float> rr0(myReader, "trk.hits0.rr");
   TTreeReaderArray<float> rr1(myReader, "trk.hits1.rr");
   TTreeReaderArray<float> rr2(myReader, "trk.hits2.rr");
@@ -244,9 +298,11 @@ void run_recom_loop_emb(int run_number = 0) {
   TTreeReaderArray<float> true_end_y(myReader, "trk.truth.p.end.y");
   TTreeReaderArray<float> true_end_z(myReader, "trk.truth.p.end.z");
   TTreeReaderArray<int> true_end_process(myReader, "trk.truth.p.end_process");
+  TTreeReaderArray<float> true_hit_rr(myReader, "trk.truth.p.truehits2.rr");
+  TTreeReaderArray<float> true_hit_nelec(myReader, "trk.truth.p.truehits2.nelec");
+  TTreeReaderArray<float> true_hit_pitch(myReader, "trk.truth.p.truehits2.pitch");
   TTreeReaderArray<float> true_hit_time(myReader, "trk.truth.p.truehits2.time");
   TTreeReaderArray<float> true_hit_tdrift(myReader, "trk.truth.p.truehits2.tdrift");
-
 
   /////////////////////////////////
   // == Loop for tracks
@@ -319,6 +375,11 @@ void run_recom_loop_emb(int run_number = 0) {
       double sin_theta_trk_x = sqrt(trk_cross_x.Mag2()) / sqrt(track_vec.Mag2());
       double theta_trk_x = TMath::ASin(sin_theta_trk_x) * 180. / TMath::Pi(); // == [Deg.]
       TString theta_trk_x_str = Get_theta_trk_x_bin_str(theta_trk_x);
+
+      double sin_zx = fabs(track_vec.Z() / (sqrt(pow(track_vec.X(), 2.) + pow(track_vec.Z(), 2.))));
+      double theta_zx = TMath::ASin(sin_zx) * 180. / TMath::Pi(); // == [Deg.]
+      TString theta_zx_str = Get_theta_trk_x_bin_str(theta_zx);
+      
       //cout << "theta_trk_x : " << theta_trk_x << ", theta_trk_x_str : " << theta_trk_x_str << endl;
       
       if(first_x * last_x < 0.) passing_cathode= true;
@@ -378,6 +439,8 @@ void run_recom_loop_emb(int run_number = 0) {
 	Fill_track_plots("trklen_60cm_passing_cathode_coszx", dist_start, dist_end, rr2, dqdx2);
 	FillHist("theta_trk_x_str_trklen_60cm_passing_cathode_coszx", theta_trk_x, 1., 100., 0., 100.);
         Fill_corrected_dqdx_plots("plane2_trklen_60cm_passing_cathode_coszx", rr2, dqdx2, sp_x2, sp_z2, pitch2, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x, theta_trk_x_str, true);
+	Fill_true_hit_plots("plane2_trklen_60cm_passing_cathode_coszx", true_hit_rr, true_hit_nelec, true_hit_pitch);
+	Fill_charge_reco_res_plots("plane2_trklen_60cm_passing_cathode_coszx", dq2, width2, dele2, rr2, theta_zx_str);
       }
       
       // == Bellow are for plot approvals
@@ -405,8 +468,11 @@ void run_recom_loop_emb(int run_number = 0) {
 
   TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
   TString output_file_name = output_rootfile_dir + "/output_recom_loop_emb_run_" + run_number_str + ".root";
-  //if(!isdata) output_file_name = output_rootfile_dir + "/output_recom_loop_emb_mc_2025a_spring.root";
-  if(!isdata) output_file_name = output_rootfile_dir + "/output_recom_loop_emb_mc_2024b.root";
+  //output_file_name = output_rootfile_dir + "/output_recom_loop_emb_mc_2025a_spring.root";
+  //output_file_name = output_rootfile_dir + "/output_recom_loop_emb_mc_2024b.root";
+
+  output_file_name = output_rootfile_dir + "/output_recom_loop_data_2025a_spring.root";
+  //output_file_name = output_rootfile_dir + "/output_recom_loop_data_2025a_goldrun.root";
   out_rootfile = new TFile(output_file_name, "RECREATE");
   out_rootfile -> cd();
   

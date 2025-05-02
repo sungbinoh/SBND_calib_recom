@@ -38,7 +38,12 @@ void run_lifetime_loop(int run_num = 0) {
   // Open the file containing the tree
   TChain *fChain = new TChain("caloskim/TrackCaloSkim");
   TString input_file_dir = getenv("DATA_PATH");
+  TString sample_list_dir = getenv("SAMPLE_PATH");
+  TString sample_list_label = getenv("FILELIST_LABEL");
+  
   TString fileListPath = input_file_dir + "/sample_list/list_run_" + run_str + "_local.txt";
+  //if(!isdata) fileListPath = sample_list_dir + "/list_2025A_Sprint25Dev_data_calib_ntuple_sungbino.txt";
+  if(!isdata) fileListPath = sample_list_dir + "/list_2025A_GoldenRun_calib_ntuple_sungbino.txt";
   AddFilesToChain(fileListPath, fChain);
 
   TTreeReader myReader(fChain);
@@ -194,7 +199,10 @@ void run_lifetime_loop(int run_num = 0) {
   }
 
   TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
-  out_rootfile = new TFile(output_rootfile_dir + "/output_lifetime_" + run_str + ".root", "RECREATE");
+  TString output_file_name = output_rootfile_dir + "/output_lifetime_loop_emb_run_" + run_str + ".root";
+  //output_file_name = output_rootfile_dir + "/output_lifetime_loop_data_2025a_spring.root";
+  output_file_name = output_rootfile_dir + "/output_lifetime_loop_data_2025a_goldrun.root";
+  out_rootfile = new TFile(output_file_name, "RECREATE");
   out_rootfile -> cd();
   
   hist_selected -> Write();

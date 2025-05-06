@@ -7,6 +7,7 @@
 #include "mylib.h"
 #include "Math/Vector3D.h"
 #include "BetheBloch.h"
+#include "Point3D.h"
 #include "SCECorr.h"
 
 BetheBloch *muon_BB = new BetheBloch(13);
@@ -111,6 +112,7 @@ double Get_EndMediandQdx(const TTreeReaderArray<float>& rr, const TTreeReaderArr
 
 void run_YZ_unif(TString list_file, TString out_suffix, bool IsData = false) {
 
+  sce_corr_mc -> ReadHistograms();
   isdata = IsData;
   
   /////////////////////////////////
@@ -303,8 +305,10 @@ void run_YZ_unif(TString list_file, TString out_suffix, bool IsData = false) {
 
 	  // == debugging pitch
 	  //cout << Form("dir (x, y, z) = (%.2f, %.2f, %.2f)", dirx2[i], diry2[i], dirz2[i]) << endl;
-	  double pitch_repro = sce_corr_mc -> meas_pitch(sp_x2[i], dirx2[i], diry2[i], dirz2[i], 2);
-	  cout << Form("pitch: %.5f, pitch_repro: %.5f", pitch2[i], pitch_repro) << endl;
+	  double pitch_repro_sce_off = sce_corr_mc -> meas_pitch(sp_x2[i], sp_y2[i], sp_z2[i], dirx2[i], diry2[i], dirz2[i], 2, false);
+	  double pitch_repro_sce_on = sce_corr_mc -> meas_pitch(sp_x2[i], sp_y2[i], sp_z2[i], dirx2[i], diry2[i], dirz2[i], 2, true);
+
+	  cout << Form("pitch: %.5f, pitch_repro (SCE off): %.5f, pitch_repro (SCE on): %.5f", pitch2[i], pitch_repro_sce_off, pitch_repro_sce_on) << endl;
 
 	}
       }

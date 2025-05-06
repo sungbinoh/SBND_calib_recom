@@ -43,6 +43,7 @@ if [[ `hostname` == *"sbnd"* ]]
 then
     source /cvmfs/larsoft.opensciencegrid.org/spack-packages/setup-env.sh
     export SAMPLE_PATH=$DATA_PATH/sample_list/sbndgpvm/
+    export SCEMAP_PATH=/cvmfs/sbnd.opensciencegrid.org/products/sbnd/sbnd_data/v01_30_00/SCEoffsets/
 fi
 
 if [[ `hostname` == *"dune-gpu01"* ]]

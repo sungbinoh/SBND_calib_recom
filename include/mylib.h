@@ -36,6 +36,7 @@ double v_drift = 156.267;
 double mass_muon = 105.658; // [MeV]
 double mass_pion = 139.57; // [MeV]
 double mass_proton = 938.272; // [MeV]
+double mass_deutron = 1875.612; // [MeV], https://physics.nist.gov/cgi-bin/cuu/Value?mdc2mev;
 const int N_pi_type = 10;
 TString pi_type_str[N_pi_type] = {"Fake Data",
 				  "#pi^{+}_{Inel.}",

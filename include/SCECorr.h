@@ -121,7 +121,7 @@ void SCECorr::SetIsData(bool isdata) {
 }
 
 XYZVector SCECorr::GetCalPosOffsets(const XYZVector& in){
-
+  // == Get SCE corrections to space points
   std::vector<double> theCalPosOffsets;
   double xx = in.X(), yy = in.Y(), zz = in.Z();
 
@@ -152,6 +152,7 @@ XYZVector SCECorr::GetCalPosOffsets(const XYZVector& in){
 }
 
 XYZVector SCECorr::WireToTrajectoryPosition(const XYZVector& in){
+  // == Apply SCE correction to space points
   XYZVector out = in;
   XYZVector offset = GetCalPosOffsets(in);
 
@@ -195,5 +196,6 @@ double SCECorr::meas_pitch(double spx, double spy, double spz, double dirx, doub
   
   return pitch;
 }
+
 
 #endif

@@ -7,7 +7,6 @@
 #include "mylib.h"
 #include "Math/Vector3D.h"
 #include "BetheBloch.h"
-#include "Point3D.h"
 #include "SCECorr.h"
 
 BetheBloch *muon_BB = new BetheBloch(13);
@@ -173,6 +172,9 @@ void run_YZ_unif(TString list_file, TString out_suffix, bool IsData = false) {
   TTreeReaderArray<float> sp_x2(myReader, "trk.hits2.h.sp.x");
   TTreeReaderArray<float> sp_y2(myReader, "trk.hits2.h.sp.y");
   TTreeReaderArray<float> sp_z2(myReader, "trk.hits2.h.sp.z");
+  TTreeReaderArray<float> qinteg0(myReader, "trk.hits0.h.integral");
+  TTreeReaderArray<float> qinteg1(myReader, "trk.hits1.h.integral");
+  TTreeReaderArray<float> qinteg2(myReader, "trk.hits2.h.integral");
   TTreeReaderValue<float> dirx(myReader, "trk.dir.x"); 
   TTreeReaderValue<float> diry(myReader, "trk.dir.y");
   TTreeReaderValue<float> dirz(myReader, "trk.dir.z");
@@ -307,9 +309,13 @@ void run_YZ_unif(TString list_file, TString out_suffix, bool IsData = false) {
 	  //cout << Form("dir (x, y, z) = (%.2f, %.2f, %.2f)", dirx2[i], diry2[i], dirz2[i]) << endl;
 	  double pitch_repro_sce_off = sce_corr_mc -> meas_pitch(sp_x2[i], sp_y2[i], sp_z2[i], dirx2[i], diry2[i], dirz2[i], 2, false);
 	  double pitch_repro_sce_on = sce_corr_mc -> meas_pitch(sp_x2[i], sp_y2[i], sp_z2[i], dirx2[i], diry2[i], dirz2[i], 2, true);
-
-	  cout << Form("pitch: %.5f, pitch_repro (SCE off): %.5f, pitch_repro (SCE on): %.5f", pitch2[i], pitch_repro_sce_off, pitch_repro_sce_on) << endl;
-
+	  double dqdx_repro_sce_off = qinteg2[i] / pitch_repro_sce_off;
+	  double dqdx_repro_sce_on = qinteg2[i] / pitch_repro_sce_on;
+	  XYZVector sp_sce_off(sp_x2[i], sp_y2[i], sp_z2[i]);
+	  XYZVector sp_sce_on = sce_corr_mc -> WireToTrajectoryPosition(sp_sce_off);
+	  cout << Form("pitch: %.5f, pitch_repro (SCE uncorr.): %.5f, pitch_repro (SCE corr.): %.5f, dqdx: %.5f, dqdx_repro (SCE uncorr.): %.5f, dqdx_repro (SCE corr.): %.5f",
+		       pitch2[i], pitch_repro_sce_off, pitch_repro_sce_on, dqdx2[i], dqdx_repro_sce_off, dqdx_repro_sce_on) << endl;
+	  cout << Form("position, SCE uncorr: (%.3f, %.3f, %.3f), SCE corr: (%.3f, %.3f, %.3f)", sp_x2[i], sp_y2[i], sp_z2[i], sp_sce_on.X(), sp_sce_on.Y(), sp_sce_on.Z()) << endl;
 	}
       }
     }

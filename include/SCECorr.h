@@ -66,54 +66,104 @@ SCECorr::SCECorr(bool isdata) : SCECorr() { SetIsData(isdata); }
 void SCECorr::ReadHistograms(){
 
   cout << "[SCECorr::ReadHistograms] Reading SCE histograms" << endl;
-  TString datapath = getenv("SCEMAP_PATH");
+  TString datapath = getenv("SBND_DATA_PATH");
+  TString sbnddata_v = getenv("SBNDDATA_VERSION");
+  datapath = datapath + sbnddata_v + "/SCEoffsets/";
   TDirectory* origDir = gDirectory;
 
   // == Refering
   // ==== https://github.com/SBNSoftware/sbndcode/blob/develop/sbndcode/SpaceCharge/SpaceChargeSBND.cxx
   // ==== https://github.com/LArSoft/larreco/blob/develop/larreco/Calorimetry/GnocchiCalorimetry_module.cc
   // == SCE map
-  TString sce_map_file_path = datapath + "/SCEoffsets_SBND_E500_dualmap_voxelTH3.root";
-  TFile *infile = TFile::Open(sce_map_file_path);
-  // E TPC
-  hTrueFwdX_E = (TH3F*) infile->Get("TrueFwd_Displacement_X_E");
-  hTrueFwdY_E = (TH3F*) infile->Get("TrueFwd_Displacement_Y_E");
-  hTrueFwdZ_E = (TH3F*) infile->Get("TrueFwd_Displacement_Z_E");
-  hTrueBkwdX_E = (TH3F*) infile->Get("TrueBkwd_Displacement_X_E");
-  hTrueBkwdY_E = (TH3F*) infile->Get("TrueBkwd_Displacement_Y_E");
-  hTrueBkwdZ_E = (TH3F*) infile->Get("TrueBkwd_Displacement_Z_E");
-  hTrueEFieldX_E = (TH3F*) infile->Get("True_ElecField_X_E");
-  hTrueEFieldY_E = (TH3F*) infile->Get("True_ElecField_Y_E");
-  hTrueEFieldZ_E = (TH3F*) infile->Get("True_ElecField_Z_E");
-  // W TPC
-  hTrueFwdX_W = (TH3F*) infile->Get("TrueFwd_Displacement_X_W");
-  hTrueFwdY_W = (TH3F*) infile->Get("TrueFwd_Displacement_Y_W");
-  hTrueFwdZ_W = (TH3F*) infile->Get("TrueFwd_Displacement_Z_W");
-  hTrueBkwdX_W = (TH3F*) infile->Get("TrueBkwd_Displacement_X_W");
-  hTrueBkwdY_W = (TH3F*) infile->Get("TrueBkwd_Displacement_Y_W");
-  hTrueBkwdZ_W = (TH3F*) infile->Get("TrueBkwd_Displacement_Z_W");
-  hTrueEFieldX_W = (TH3F*) infile->Get("True_ElecField_X_W");
-  hTrueEFieldY_W = (TH3F*) infile->Get("True_ElecField_Y_W");
-  hTrueEFieldZ_W = (TH3F*) infile->Get("True_ElecField_Z_W");
 
-  hTrueFwdX_E->SetDirectory(0);
-  hTrueFwdY_E->SetDirectory(0);
-  hTrueFwdZ_E->SetDirectory(0);
-  hTrueBkwdX_E->SetDirectory(0);
-  hTrueBkwdY_E->SetDirectory(0);
-  hTrueBkwdZ_E->SetDirectory(0);
-  hTrueEFieldX_E->SetDirectory(0);
-  hTrueEFieldY_E->SetDirectory(0);
-  hTrueEFieldZ_E->SetDirectory(0);
-  hTrueFwdX_W->SetDirectory(0);
-  hTrueFwdY_W->SetDirectory(0);
-  hTrueFwdZ_W->SetDirectory(0);
-  hTrueBkwdX_W->SetDirectory(0);
-  hTrueBkwdY_W->SetDirectory(0);
-  hTrueBkwdZ_W->SetDirectory(0);
-  hTrueEFieldX_W->SetDirectory(0);
-  hTrueEFieldY_W->SetDirectory(0);
-  hTrueEFieldZ_W->SetDirectory(0);
+  TString sce_map_file_path = datapath + "/SCEoffsets_SBND_E500_dualmap_voxelTH3.root";
+  if(sbnddata_v == "v01_28_00"){
+
+    sce_map_file_path = datapath + "/SCEoffsets_SBND_E500_voxelTH3.root";
+    TFile *infile = TFile::Open(sce_map_file_path);
+
+    // E TPC
+    hTrueFwdX_E = (TH3F*) infile->Get("TrueFwd_Displacement_X");
+    hTrueFwdY_E = (TH3F*) infile->Get("TrueFwd_Displacement_Y");
+    hTrueFwdZ_E = (TH3F*) infile->Get("TrueFwd_Displacement_Z");
+    hTrueBkwdX_E = (TH3F*) infile->Get("TrueBkwd_Displacement_X");
+    hTrueBkwdY_E = (TH3F*) infile->Get("TrueBkwd_Displacement_Y");
+    hTrueBkwdZ_E = (TH3F*) infile->Get("TrueBkwd_Displacement_Z");
+    hTrueEFieldX_E = (TH3F*) infile->Get("True_ElecField_X");
+    hTrueEFieldY_E = (TH3F*) infile->Get("True_ElecField_Y");
+    hTrueEFieldZ_E = (TH3F*) infile->Get("True_ElecField_Z");
+    // W TPC
+    hTrueFwdX_W = (TH3F*) infile->Get("TrueFwd_Displacement_X");
+    hTrueFwdY_W = (TH3F*) infile->Get("TrueFwd_Displacement_Y");
+    hTrueFwdZ_W = (TH3F*) infile->Get("TrueFwd_Displacement_Z");
+    hTrueBkwdX_W = (TH3F*) infile->Get("TrueBkwd_Displacement_X");
+    hTrueBkwdY_W = (TH3F*) infile->Get("TrueBkwd_Displacement_Y");
+    hTrueBkwdZ_W = (TH3F*) infile->Get("TrueBkwd_Displacement_Z");
+    hTrueEFieldX_W = (TH3F*) infile->Get("True_ElecField_X");
+    hTrueEFieldY_W = (TH3F*) infile->Get("True_ElecField_Y");
+    hTrueEFieldZ_W = (TH3F*) infile->Get("True_ElecField_Z");
+
+    hTrueFwdX_E->SetDirectory(0);
+    hTrueFwdY_E->SetDirectory(0);
+    hTrueFwdZ_E->SetDirectory(0);
+    hTrueBkwdX_E->SetDirectory(0);
+    hTrueBkwdY_E->SetDirectory(0);
+    hTrueBkwdZ_E->SetDirectory(0);
+    hTrueEFieldX_E->SetDirectory(0);
+    hTrueEFieldY_E->SetDirectory(0);
+    hTrueEFieldZ_E->SetDirectory(0);
+    hTrueFwdX_W->SetDirectory(0);
+    hTrueFwdY_W->SetDirectory(0);
+    hTrueFwdZ_W->SetDirectory(0);
+    hTrueBkwdX_W->SetDirectory(0);
+    hTrueBkwdY_W->SetDirectory(0);
+    hTrueBkwdZ_W->SetDirectory(0);
+    hTrueEFieldX_W->SetDirectory(0);
+    hTrueEFieldY_W->SetDirectory(0);
+    hTrueEFieldZ_W->SetDirectory(0);
+  }
+  else{
+    TFile *infile = TFile::Open(sce_map_file_path);
+    // E TPC
+    hTrueFwdX_E = (TH3F*) infile->Get("TrueFwd_Displacement_X_E");
+    hTrueFwdY_E = (TH3F*) infile->Get("TrueFwd_Displacement_Y_E");
+    hTrueFwdZ_E = (TH3F*) infile->Get("TrueFwd_Displacement_Z_E");
+    hTrueBkwdX_E = (TH3F*) infile->Get("TrueBkwd_Displacement_X_E");
+    hTrueBkwdY_E = (TH3F*) infile->Get("TrueBkwd_Displacement_Y_E");
+    hTrueBkwdZ_E = (TH3F*) infile->Get("TrueBkwd_Displacement_Z_E");
+    hTrueEFieldX_E = (TH3F*) infile->Get("True_ElecField_X_E");
+    hTrueEFieldY_E = (TH3F*) infile->Get("True_ElecField_Y_E");
+    hTrueEFieldZ_E = (TH3F*) infile->Get("True_ElecField_Z_E");
+    // W TPC
+    hTrueFwdX_W = (TH3F*) infile->Get("TrueFwd_Displacement_X_W");
+    hTrueFwdY_W = (TH3F*) infile->Get("TrueFwd_Displacement_Y_W");
+    hTrueFwdZ_W = (TH3F*) infile->Get("TrueFwd_Displacement_Z_W");
+    hTrueBkwdX_W = (TH3F*) infile->Get("TrueBkwd_Displacement_X_W");
+    hTrueBkwdY_W = (TH3F*) infile->Get("TrueBkwd_Displacement_Y_W");
+    hTrueBkwdZ_W = (TH3F*) infile->Get("TrueBkwd_Displacement_Z_W");
+    hTrueEFieldX_W = (TH3F*) infile->Get("True_ElecField_X_W");
+    hTrueEFieldY_W = (TH3F*) infile->Get("True_ElecField_Y_W");
+    hTrueEFieldZ_W = (TH3F*) infile->Get("True_ElecField_Z_W");
+
+    hTrueFwdX_E->SetDirectory(0);
+    hTrueFwdY_E->SetDirectory(0);
+    hTrueFwdZ_E->SetDirectory(0);
+    hTrueBkwdX_E->SetDirectory(0);
+    hTrueBkwdY_E->SetDirectory(0);
+    hTrueBkwdZ_E->SetDirectory(0);
+    hTrueEFieldX_E->SetDirectory(0);
+    hTrueEFieldY_E->SetDirectory(0);
+    hTrueEFieldZ_E->SetDirectory(0);
+    hTrueFwdX_W->SetDirectory(0);
+    hTrueFwdY_W->SetDirectory(0);
+    hTrueFwdZ_W->SetDirectory(0);
+    hTrueBkwdX_W->SetDirectory(0);
+    hTrueBkwdY_W->SetDirectory(0);
+    hTrueBkwdZ_W->SetDirectory(0);
+    hTrueEFieldX_W->SetDirectory(0);
+    hTrueEFieldY_W->SetDirectory(0);
+    hTrueEFieldZ_W->SetDirectory(0);
+  }
 }
 
 void SCECorr::SetIsData(bool isdata) {
@@ -136,6 +186,7 @@ XYZVector SCECorr::GetCalPosOffsets(const XYZVector& in){
   if ((xx > -2.5) && (xx < 0.)) { xx = -2.5; }
   if ((xx < 2.5) && (xx > 0.)) { xx = 2.5; }
   double offset_x = 0., offset_y = 0., offset_z = 0.;
+  //cout << "[SCECorr::GetCalPosOffsets] xx: " << xx << ", yy: " << yy << ", zz: " << zz << endl;
   if(xx < 0){
     offset_x = hTrueBkwdX_E -> Interpolate(xx,yy,zz);
     offset_y = hTrueBkwdY_E -> Interpolate(xx,yy,zz);

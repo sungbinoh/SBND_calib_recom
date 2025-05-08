@@ -82,9 +82,9 @@ void draw_rr_vs_dedx(int run_num = 0, int rebin_x = 1, int rebin_y = 1, int plan
   //hist_2D->SetMinimum(hist_2D->GetMinimum(0.));
   hist_2D -> Draw("colsame");
 
-  int N_BB_points = 100.;
-  double rr_min = 2.;
-  double rr_max = 200.;
+  int N_BB_points = 200.;
+  double rr_min = 1.;
+  double rr_max = 100.;
   double rr_step = (rr_max - rr_min) / (N_BB_points + 0.);
   vector<double> BB_rr;
   vector<double> BB_dedx_MPV;

@@ -606,4 +606,22 @@ void WriteHist(){
   }
 }
 
+
+void WriteCanvas(){
+
+  out_rootfile->cd();
+  for(std::map< TString, TCanvas* >::iterator mapit = mapcanvas.begin(); mapit!=mapcanvas.end(); mapit++){
+    TString this_fullname=mapit->second->GetName();
+    TString this_name=this_fullname(this_fullname.Last('/')+1,this_fullname.Length());
+    TString this_suffix=this_fullname(0,this_fullname.Last('/'));
+    TDirectory *dir = out_rootfile->GetDirectory(this_suffix);
+    if(!dir){
+      out_rootfile->mkdir(this_suffix);
+    }
+    out_rootfile->cd(this_suffix);
+    mapit->second->Write(this_name);
+    out_rootfile->cd();
+  }
+}
+
 #endif

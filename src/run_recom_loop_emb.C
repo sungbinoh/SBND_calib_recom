@@ -210,13 +210,9 @@ void Fill_charge_reco_res_plots(TString suffix, const TTreeReaderArray<float>& d
   }
 }
 
-void run_recom_loop_emb(int run_number = 0) {
+void run_recom_loop_emb(TString list_file, TString out_suffix, bool IsData = false) {
 
-  TString run_number_str = "";
-  run_number_str = TString::Format("%d", run_number);
-  if(run_number > 0){
-    isdata = true;
-  }
+  isdata = IsData;
   
   /////////////////////////////////
   // == Define histograms
@@ -465,14 +461,8 @@ void run_recom_loop_emb(int run_number = 0) {
     }
   }
 
-
   TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
-  TString output_file_name = output_rootfile_dir + "/output_recom_loop_emb_run_" + run_number_str + ".root";
-  //output_file_name = output_rootfile_dir + "/output_recom_loop_emb_mc_2025a_spring.root";
-  //output_file_name = output_rootfile_dir + "/output_recom_loop_emb_mc_2024b.root";
-
-  output_file_name = output_rootfile_dir + "/output_recom_loop_data_2025a_spring.root";
-  //output_file_name = output_rootfile_dir + "/output_recom_loop_data_2025a_goldrun.root";
+  TString output_file_name = output_rootfile_dir + "/output_recom_loop_emb_run_" + out_suffix + ".root";
   out_rootfile = new TFile(output_file_name, "RECREATE");
   out_rootfile -> cd();
   

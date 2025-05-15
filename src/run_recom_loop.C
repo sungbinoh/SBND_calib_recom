@@ -7,6 +7,7 @@
 #include "mylib.h"
 #include "Math/Vector3D.h"
 #include "BetheBloch.h"
+#include "SCECorr.h"
 
 TSpline3 * muon_sp_range_to_KE = Get_sp_range_KE(mass_muon);
 

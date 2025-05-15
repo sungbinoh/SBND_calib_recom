@@ -5,15 +5,232 @@
 #include "TTreeReader.h"
 #include "TTreeReaderValue.h"
 #include "mylib.h"
+#include "SCECorr.h"
 
-void run_lifetime_loop(int run_num = 0) {
+SCECorr *sce_corr_mc = new SCECorr(false);
+bool isdata = false;
 
-  bool isdata = false;
-  TString run_str = "";
-  if(run_num != 0){
-    isdata = true;
-    run_str = TString::Format("%d", run_num);
+//int nGroupedWires = 10;
+int NBinsX = 100;
+int NBinsT = 100;
+int NBinsdQdx = 300;
+double minX = -200.;
+double halfX = 0.;
+double maxX = 200.;
+double mindQdx = 0.;
+double maxdQdx = 3000.;
+double minT = 0.;
+double maxT = 1.3;
+
+double zprime_60deg(double y, double z, int pm = 1){
+  double cos_60deg = 0.5;
+  double sig_60deg = sqrt(3.) * 0.5;
+  double zprime = z * cos_60deg - (pm + 0.) * sig_60deg * y;
+  return zprime;
+}
+
+bool evt_sel(const TTreeReaderArray<float> &sp_x, const TTreeReaderArray<float> &sp_y, const TTreeReaderArray<float> &sp_z, const TTreeReaderArray<float> &rr, const TTreeReaderArray<float> &dqdx){
+
+  bool out = false;
+
+  unsigned N_reco_hits = rr.GetSize();
+  if(N_reco_hits < 3) return out;
+
+  double first_x = -999.;
+  double first_y = -999.;
+  double first_z = -999.;
+  double last_x = -999.;
+  double last_y = -999.;
+  double last_z = -999.;
+
+  first_x = sp_x[N_reco_hits - 1];
+  first_y = sp_y[N_reco_hits - 1];
+  first_z = sp_z[N_reco_hits - 1];
+  for (unsigned i = 0; i < dqdx.GetSize(); i++) {
+    if(rr[i] > 0){
+      last_x = sp_x[i];
+      last_y = sp_y[i];
+      last_z = sp_z[i];
+      break;
+    }
   }
+  bool passing_cathode = false;
+  ROOT::Math::XYZVector track_vec(last_x - first_x, last_y - first_y, last_z - first_z);
+  double cos_xy = track_vec.X() / (sqrt(pow(track_vec.X(), 2.) + pow(track_vec.Y(), 2.)));
+  double cos_yz = track_vec.Y() / (sqrt(pow(track_vec.Y(), 2.) + pow(track_vec.Z(), 2.)));
+  double cos_zx = track_vec.X() / (sqrt(pow(track_vec.X(), 2.) + pow(track_vec.Z(), 2.)));
+  double zprime_plus = zprime_60deg(track_vec.Y(), track_vec.Z(), 1);
+  double zprime_minus = zprime_60deg(track_vec.Y(), track_vec.Z(), -1);
+  double cos_plus_zprimex = track_vec.X() / (sqrt(pow(track_vec.X(), 2.) + pow(zprime_plus, 2.)));
+  double cos_minus_zprimex = track_vec.X() / (sqrt(pow(track_vec.X(), 2.) + pow(zprime_minus, 2.)));
+
+  if(first_x * last_x < 0.) passing_cathode = true;
+  if(!passing_cathode) return out;
+
+  out = true;
+  return out;
+}
+
+void get_cos_vals(const TTreeReaderArray<float> &sp_x, const TTreeReaderArray<float> &sp_y, const TTreeReaderArray<float> &sp_z, const TTreeReaderArray<float> &rr, Double_t *cos_vals){
+
+  unsigned N_reco_hits = sp_x.GetSize();
+  double first_x = -999.;
+  double first_y = -999.;
+  double first_z = -999.;
+  double last_x = -999.;
+  double last_y = -999.;
+  double last_z = -999.;
+  first_x = sp_x[N_reco_hits - 1];
+  first_y = sp_y[N_reco_hits - 1];
+  first_z = sp_z[N_reco_hits - 1];
+  for (unsigned i = 0; i < sp_x.GetSize(); i++) {
+    if(rr[i] > 0){
+      last_x = sp_x[i];
+      last_y = sp_y[i];
+      last_z = sp_z[i];
+      break;
+    }
+  }
+
+  ROOT::Math::XYZVector track_vec(last_x - first_x, last_y - first_y, last_z - first_z);
+  double cos_xy = track_vec.X() / (sqrt(pow(track_vec.X(), 2.) + pow(track_vec.Y(), 2.)));
+  double cos_yz = track_vec.Y() / (sqrt(pow(track_vec.Y(), 2.) + pow(track_vec.Z(), 2.)));
+  double cos_zx = track_vec.X() / (sqrt(pow(track_vec.X(), 2.) + pow(track_vec.Z(), 2.)));
+  double zprime_plus = zprime_60deg(track_vec.Y(), track_vec.Z(), 1);
+  double zprime_minus = zprime_60deg(track_vec.Y(), track_vec.Z(), -1);
+  double cos_plus_zprimex = track_vec.X() / (sqrt(pow(track_vec.X(), 2.) + pow(zprime_plus, 2.)));
+  double cos_minus_zprimex = track_vec.X() / (sqrt(pow(track_vec.X(), 2.) + pow(zprime_minus, 2.)));
+
+  // == return four cos vals: cosyz, coszx, coszx+, coszx-
+  cos_vals[0] = cos_yz;
+  cos_vals[1] = cos_zx;
+  cos_vals[2] = cos_plus_zprimex;
+  cos_vals[3] = cos_minus_zprimex;
+}
+
+void fill_lifetime_hists(int nGroupedWires, int plane, const TTreeReaderArray<float> &sp_x, const TTreeReaderArray<float> &sp_y, const TTreeReaderArray<float> &sp_z,
+			 const TTreeReaderArray<float> &dirx, const TTreeReaderArray<float> &diry, const TTreeReaderArray<float> &dirz,
+			 const TTreeReaderArray<uint16_t> &wire, const TTreeReaderArray<float> &dqdx, const TTreeReaderArray<float> &time, float trk_t0){
+  // Refering to https://github.com/annab101/ElectronLifetimeSBND/blob/main/Main/dQdx_hist.cpp
+  auto it_start_x = std::find_if(sp_x.begin(), sp_x.end(), [](float f){return !std::isnan(f);});
+  int start_index = std::distance(sp_x.begin(), it_start_x);
+
+  if(start_index == sp_x.GetSize()){return;}
+  auto it_end_x = std::find_if(it_start_x, sp_x.end(), [](float f){return std::isnan(f);}) - 1;
+  int end_index = std::distance(sp_x.begin(), it_end_x);
+  if(end_index < 0){return;}
+
+  int minWire = wire[start_index];
+  int maxWire = wire[end_index];
+
+  if(minWire > maxWire){
+    std::swap(minWire, maxWire);
+  }
+
+  double dQdx_sum=0;
+  double x_sum=0;
+  double t_sum=0;
+  int count=0;
+
+  double dQdx_sce_sum=0;
+  double x_sce_sum=0;
+  
+  for(int i = start_index; i <= end_index; i++){
+
+    dQdx_sum += dqdx[i];
+    x_sum += sp_x[i];
+    t_sum += time[i];
+
+    XYZVector sp_sce_uncorr(sp_x[i], sp_y[i], sp_z[i]);
+    XYZVector sp_sce_corr = sce_corr_mc -> WireToTrajectoryPosition(sp_sce_uncorr);
+    double pitch_sce_uncorr = sce_corr_mc -> meas_pitch(sp_x[i], sp_y[i], sp_z[i], dirx[i], diry[i], dirz[i], plane, false);
+    double pitch_sce_corr = sce_corr_mc -> meas_pitch(sp_x[i], sp_y[i], sp_z[i], dirx[i], diry[i], dirz[i], plane, true);
+    double dqdx_sce_corr = dqdx[i] * pitch_sce_uncorr / pitch_sce_corr;
+
+    dQdx_sce_sum += dqdx_sce_corr;
+    x_sce_sum += sp_sce_corr.X();
+    
+    count += 1;
+
+    //Fill hist if swap TPC
+    if( i < end_index && (sp_x[i] * sp_x[i+1]) < 0.){
+      FillHist(Form("h_dQdx_xDrift_%dwires_plane%d", nGroupedWires, plane), x_sum/count, dQdx_sum/count, 1., NBinsX, minX, maxX, NBinsdQdx, mindQdx, maxdQdx);
+      FillHist(Form("h_dQdx_xDrift_%dwires_plane%d_sce_corr", nGroupedWires, plane), x_sce_sum/count, dQdx_sce_sum/count, 1., NBinsX, minX, maxX, NBinsdQdx, mindQdx, maxdQdx);
+      
+      if(-200. < x_sum/count && x_sum/count < 0.){
+	FillHist(Form("h_dQdx_tDriftE_%dwires_plane%d", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+	FillHist(Form("h_dQdx_tDriftE_%dwires_plane%d_sce_corr", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sce_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+      }
+      
+      if(0. < x_sum/count && x_sum/count < 200.){
+	FillHist(Form("h_dQdx_tDriftW_%dwires_plane%d", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+	FillHist(Form("h_dQdx_tDriftW_%dwires_plane%d_sce_corr", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sce_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+      }				
+      
+      dQdx_sum = 0.;
+      x_sum = 0.;
+      t_sum = 0.;
+      count = 0;
+
+      dQdx_sce_sum = 0.;
+      x_sce_sum = 0.;
+    }
+    else if(i == end_index){
+
+      FillHist(Form("h_dQdx_xDrift_%dwires_plane%d", nGroupedWires, plane), x_sum/count, dQdx_sum/count, 1., NBinsX, minX, maxX, NBinsdQdx, mindQdx, maxdQdx);
+      FillHist(Form("h_dQdx_xDrift_%dwires_plane%d_sce_corr", nGroupedWires, plane), x_sce_sum/count, dQdx_sce_sum/count, 1., NBinsX, minX, maxX, NBinsdQdx, mindQdx, maxdQdx);
+
+      if(-200. < x_sum/count && x_sum/count < 0.){
+	FillHist(Form("h_dQdx_tDriftE_%dwires_plane%d", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+	FillHist(Form("h_dQdx_tDriftE_%dwires_plane%d_sce_corr", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sce_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+      }
+      
+      if(0. < x_sum/count && x_sum/count < 200.){
+	FillHist(Form("h_dQdx_tDriftW_%dwires_plane%d", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+        FillHist(Form("h_dQdx_tDriftW_%dwires_plane%d_sce_corr", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sce_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+      }
+      
+      dQdx_sum = 0.;
+      x_sum = 0.;
+      t_sum = 0.;
+      count = 0;
+
+      dQdx_sce_sum = 0.;
+      x_sce_sum = 0.;
+    }
+    else{
+      
+      if((wire[i] - minWire)/nGroupedWires != (wire[i+1] - minWire)/nGroupedWires){
+	
+	FillHist(Form("h_dQdx_xDrift_%dwires_plane%d", nGroupedWires, plane), x_sum/count, dQdx_sum/count, 1., NBinsX, minX, maxX, NBinsdQdx, mindQdx, maxdQdx);
+	FillHist(Form("h_dQdx_xDrift_%dwires_plane%d_sce_corr", nGroupedWires, plane), x_sce_sum/count, dQdx_sce_sum/count, 1., NBinsX, minX, maxX, NBinsdQdx, mindQdx, maxdQdx);
+
+	if(-200. < x_sum/count && x_sum/count < 0.){
+	  FillHist(Form("h_dQdx_tDriftE_%dwires_plane%d", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+	  FillHist(Form("h_dQdx_tDriftE_%dwires_plane%d_sce_corr", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sce_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+	}
+	
+	if(0. < x_sum/count && x_sum/count < 200.){
+	  FillHist(Form("h_dQdx_tDriftW_%dwires_plane%d", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+          FillHist(Form("h_dQdx_tDriftW_%dwires_plane%d_sce_corr", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sce_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+	}
+	
+	dQdx_sum = 0.;
+	x_sum = 0.;
+	t_sum = 0.;
+	count = 0;
+
+	dQdx_sce_sum = 0.;
+	x_sce_sum = 0.;
+      }
+    }
+  }
+}
+
+void run_lifetime_loop(TString list_file, TString out_suffix, bool IsData = false) {
+
+  sce_corr_mc -> ReadHistograms();
+  isdata = IsData;
   
   /////////////////////////////////
   // == Define histograms
@@ -21,24 +238,25 @@ void run_lifetime_loop(int run_num = 0) {
   // == Histograms for overal events
   TH1F *hist_selected = new TH1F("selected", "selected", 3., -0.5, 2.5);
 
-  // == Histograms for stopping muons
-  TH1F *hist_true_end_process = new TH1F("true_end_process", "true_end_process", 65., -0.5, 64.5);
-  TH1F *hist_true_end_process_track_len_cut = new TH1F("true_end_process_track_len_cut", "true_end_process_track_len_cut", 65., -0.5, 64.5);
-
-  // == Histograms for cathod-anode passing muons
-  TH2F *hist_time_vs_dqdx = new TH2F("time_dqdx","time_dqdx", 4000., 0., 4000., 3000., 0., 3000.);
-  TH2F *hist_sp_x_vs_dqdx = new TH2F("sp_x_dqdx","sp_x_dqdx", 500., -250., 250., 3000., 0., 3000.);
-  TH2F *hist_sp_x_vs_corr_dqdx = new TH2F("sp_x_corr_dqdx","sp_x_corr_dqdx", 500., -250., 250., 3000., 0., 3000.);
-  TH2F *hist_tdrift_vs_dqdx = new TH2F("tdrift_vs_dqdx", "tdrift_vs_dqdx", 150., 0., 1.5, 3000., 0., 3000.);
-  TH2F *hist_tdrift_vs_corr_dqdx = new TH2F("tdrift_vs_corr_dqdx", "tdrift_vs_corr_dqdx", 150., 0., 1.5, 3000., 0., 3000.);
-
   /////////////////////////////////
   // == Call Trees
   /////////////////////////////////
   // Open the file containing the tree
   TChain *fChain = new TChain("caloskim/TrackCaloSkim");
   TString input_file_dir = getenv("DATA_PATH");
-  TString fileListPath = input_file_dir + "/sample_list/list_run_" + run_str + "_local.txt";
+  TString sample_list_dir = getenv("SAMPLE_PATH");
+  TString sample_list_label = getenv("FILELIST_LABEL");
+  
+  TString fileListPath = sample_list_dir + "/" + list_file;
+  cout << "Opening : " << fileListPath << endl;
+  // Check if the file exits
+  std::ifstream file(fileListPath.Data());  // Convert TString to const char*
+  if (!file) {
+    cout << "File does not exist: " << fileListPath << endl;
+    cout << "Exiting [run_recom_loop_emb]" << endl;
+    return;
+  }
+
   AddFilesToChain(fileListPath, fChain);
 
   TTreeReader myReader(fChain);
@@ -46,17 +264,51 @@ void run_lifetime_loop(int run_num = 0) {
   // == Variables
   TTreeReaderValue<int> run(myReader, "trk.meta.run");
   TTreeReaderValue<int> evt(myReader, "trk.meta.evt");
+  TTreeReaderValue<unsigned long> ts(myReader, "trk.meta.time");
+  TTreeReaderValue<int> trkid(myReader, "trk.id");
+  TTreeReaderValue<float> trklen(myReader, "trk.length");
 
   TTreeReaderValue<int> selected(myReader, "trk.selected");
-  TTreeReaderArray<float> dqdx(myReader, "trk.hits2.dqdx"); // hits on plane 2 (Collection)
-  TTreeReaderArray<float> rr(myReader, "trk.hits2.rr");
-  TTreeReaderArray<float> time(myReader, "trk.hits2.h.time"); 
-  TTreeReaderArray<float> sp_x(myReader, "trk.hits2.h.sp.x");
-  TTreeReaderArray<float> sp_y(myReader, "trk.hits2.h.sp.y");
-  TTreeReaderArray<float> sp_z(myReader, "trk.hits2.h.sp.z");
-  TTreeReaderArray<float> dir_x(myReader, "trk.dir.x"); 
-  TTreeReaderArray<float> dir_y(myReader, "trk.dir.y");
-  TTreeReaderArray<float> dir_z(myReader, "trk.dir.z");
+  TTreeReaderValue<Float_t> trk_t0(myReader, "trk.t0");
+  TTreeReaderArray<float> dqdx0(myReader, "trk.hits0.dqdx"); // hits on plane 0 (Induction)
+  TTreeReaderArray<float> dqdx1(myReader, "trk.hits1.dqdx"); // hits on plane 1 (Induction)
+  TTreeReaderArray<float> dqdx2(myReader, "trk.hits2.dqdx"); // hits on plane 2 (Collection)
+  TTreeReaderArray<float> rr0(myReader, "trk.hits0.rr");
+  TTreeReaderArray<float> rr1(myReader, "trk.hits1.rr");
+  TTreeReaderArray<float> rr2(myReader, "trk.hits2.rr");
+  TTreeReaderArray<float> pitch0(myReader, "trk.hits0.pitch");
+  TTreeReaderArray<float> pitch1(myReader, "trk.hits1.pitch");
+  TTreeReaderArray<float> pitch2(myReader, "trk.hits2.pitch");
+  TTreeReaderArray<float> time0(myReader, "trk.hits0.h.time");
+  TTreeReaderArray<float> time1(myReader, "trk.hits1.h.time");
+  TTreeReaderArray<float> time2(myReader, "trk.hits2.h.time");
+  TTreeReaderArray<float> sp_x0(myReader, "trk.hits0.h.sp.x");
+  TTreeReaderArray<float> sp_y0(myReader, "trk.hits0.h.sp.y");
+  TTreeReaderArray<float> sp_z0(myReader, "trk.hits0.h.sp.z");
+  TTreeReaderArray<float> sp_x1(myReader, "trk.hits1.h.sp.x");
+  TTreeReaderArray<float> sp_y1(myReader, "trk.hits1.h.sp.y");
+  TTreeReaderArray<float> sp_z1(myReader, "trk.hits1.h.sp.z");
+  TTreeReaderArray<float> sp_x2(myReader, "trk.hits2.h.sp.x");
+  TTreeReaderArray<float> sp_y2(myReader, "trk.hits2.h.sp.y");
+  TTreeReaderArray<float> sp_z2(myReader, "trk.hits2.h.sp.z");
+  TTreeReaderArray<float> qinteg0(myReader, "trk.hits0.h.integral");
+  TTreeReaderArray<float> qinteg1(myReader, "trk.hits1.h.integral");
+  TTreeReaderArray<float> qinteg2(myReader, "trk.hits2.h.integral");
+  TTreeReaderValue<float> dirx(myReader, "trk.dir.x");
+  TTreeReaderValue<float> diry(myReader, "trk.dir.y");
+  TTreeReaderValue<float> dirz(myReader, "trk.dir.z");
+  TTreeReaderArray<float> dirx0(myReader, "trk.hits0.dir.x");
+  TTreeReaderArray<float> diry0(myReader, "trk.hits0.dir.y");
+  TTreeReaderArray<float> dirz0(myReader, "trk.hits0.dir.z");
+  TTreeReaderArray<float> dirx1(myReader, "trk.hits1.dir.x");
+  TTreeReaderArray<float> diry1(myReader, "trk.hits1.dir.y");
+  TTreeReaderArray<float> dirz1(myReader, "trk.hits1.dir.z");
+  TTreeReaderArray<float> dirx2(myReader, "trk.hits2.dir.x");
+  TTreeReaderArray<float> diry2(myReader, "trk.hits2.dir.y");
+  TTreeReaderArray<float> dirz2(myReader, "trk.hits2.dir.z");
+  TTreeReaderArray<uint16_t> wire0(myReader, "trk.hits0.h.wire");
+  TTreeReaderArray<uint16_t> wire1(myReader, "trk.hits1.h.wire");
+  TTreeReaderArray<uint16_t> wire2(myReader, "trk.hits2.h.wire");
 
   TTreeReaderArray<float> true_start_x(myReader, "trk.truth.p.start.x");
   TTreeReaderArray<float> true_start_y(myReader, "trk.truth.p.start.y");
@@ -67,7 +319,6 @@ void run_lifetime_loop(int run_num = 0) {
   TTreeReaderArray<int> true_end_process(myReader, "trk.truth.p.end_process");
   TTreeReaderArray<float> true_hit_time(myReader, "trk.truth.p.truehits2.time");
   TTreeReaderArray<float> true_hit_tdrift(myReader, "trk.truth.p.truehits2.tdrift");
-  
 
   /////////////////////////////////
   // == Loop for tracks
@@ -76,68 +327,44 @@ void run_lifetime_loop(int run_num = 0) {
   cout << "N_entries : " << N_entries << endl;
   int current_entry = 0;
 
-  int N_run = 100;
-  double ADC_med_cut = 1600.; // == https://sbn-docdb.fnal.gov/cgi-bin/sso/RetrieveFile?docid=23472&filename=SBND%20Calib%20Workshop%202021.pdf&version=1
+  int N_run = 200000;
   double track_length_cut = 60.;
   // Loop over all entries of the TTree
   while (myReader.Next()) {
-    //if(current_entry > N_run) break;
-   
+    if(current_entry > N_run) break;
+
     if(current_entry%100 == 0){
       cout << current_entry << " / " << N_entries << endl;
     }
     current_entry++;
 
-    if(*run == 14480){
-      if(*evt >= 749) continue;
-    }
-
     hist_selected -> Fill(*selected);
 
     // == Tracks selected as Anode+Cathode crossing
     if (*selected == 1) {
-
-      unsigned N_reco_hits = rr.GetSize();
-      double this_reco_trk_len = rr[N_reco_hits - 1];
-
-      double first_x = -999.;
-      double first_y = -999.;
-      double first_z = -999.;
-      double last_x = -999.;
-      double last_y = -999.;
-      double last_z = -999.;
-
-      first_x = sp_x[N_reco_hits - 1];
-      first_y = sp_y[N_reco_hits - 1];
-      first_z = sp_z[N_reco_hits - 1];
-
-      for (unsigned i = 0; i < dqdx.GetSize(); i++) {
-        if(rr[i] > 0){
-          last_x = sp_x[i];
-          last_y = sp_y[i];
-          last_z = sp_z[i];
-          break;
-	}
+      // == 1st ind plane
+      if(evt_sel(sp_x0, sp_y0, sp_z0, rr0, dqdx0)){
+	// -- cos vals: cosyz, coszx, coszx+, coszx-
+	double cos_vals_0[4];
+        get_cos_vals(sp_x0, sp_y0, sp_z0, rr0, cos_vals_0);
+	fill_lifetime_hists(10, 0, sp_x0, sp_y0, sp_z0, dirx0, diry0, dirz0, wire0, dqdx0, time0, *trk_t0);
       }
-      bool passing_cathode = false;
-      ROOT::Math::XYZVector track_vec(last_x - first_x, last_y - first_y, last_z - first_z);
-      double cos_xy = track_vec.X() / (sqrt(pow(track_vec.X(), 2.) + pow(track_vec.Y(), 2.)));
-      double cos_yz = track_vec.Y() / (sqrt(pow(track_vec.Y(), 2.) + pow(track_vec.Z(), 2.)));
-      double cos_zx = track_vec.X() / (sqrt(pow(track_vec.X(), 2.) + pow(track_vec.Z(), 2.)));
-      if(first_x * last_x < 0.) passing_cathode= true;
 
-      //cout << "passing_cathode : " << passing_cathode << ", this_reco_trk_len : " <<this_reco_trk_len << ", first_x : " << first_x << ", last_x : " << last_x << endl;
-      if(rr[rr.GetSize() - 1] < track_length_cut) continue; // remove tracks shorter than 60 cm
-      //cout << "[(*selected == 1)] dqdx.GetSize() : " << dqdx.GetSize() << ", true_hit_time.GetSize() : " << true_hit_time.GetSize() << endl;
+      if(evt_sel(sp_x1, sp_y1, sp_z1, rr1, dqdx1)){
+        // -- cos vals: cosyz, coszx, coszx+, coszx-
+        double cos_vals_1[4];
+        get_cos_vals(sp_x1, sp_y1, sp_z1, rr1, cos_vals_1);
+        fill_lifetime_hists(10, 1, sp_x1, sp_y1, sp_z1, dirx1, diry1, dirz1, wire1, dqdx1, time1, *trk_t0);
+      }
+
+      if(evt_sel(sp_x2, sp_y2, sp_z2, rr2, dqdx2)){
+        // -- cos vals: cosyz, coszx, coszx+, coszx-
+        double cos_vals_2[4];
+        get_cos_vals(sp_x2, sp_y2, sp_z2, rr2, cos_vals_2);
+        fill_lifetime_hists(10, 2, sp_x2, sp_y2, sp_z2, dirx2, diry2, dirz2, wire2, dqdx2, time2, *trk_t0);
+      }
       
-      // == Collect maximum hit pick time of the track
-      double t_min = 999.;
-      for (unsigned i = 0; i < dqdx.GetSize(); i++) {
-	double this_t = time[i] * 5.0e-4;
-	if(this_t < t_min && rr[i] > 0) t_min = this_t;
-	//cout << i << ", this_t :  " << this_t << ", sp_x[i] : " << sp_x[i] << ", rr[i] : " << rr[i] << endl;
-      }
-
+      /*
       // == No angular cut
       for (unsigned i = 0; i < dqdx.GetSize(); i++) {
 	if(rr[i] < 0.) continue;
@@ -150,7 +377,7 @@ void run_lifetime_loop(int run_num = 0) {
 	
 	FillHist("x_vs_y_trk_len", sp_x[i], sp_y[i], 1., 500., -250., 250., 500., -250., 250.);
         FillHist("x_vs_z_trk_len", sp_x[i], sp_z[i], 1., 500., -250., 250., 600., -50., 550.);
-
+	
 	//cout << i << ", time : " << time[i] << ", sp_x : " << sp_x[i] << endl;
 	double t_drift_time = time[i] * 5.0e-4 - t_min;
         double t_drift_space = (200. - fabs(sp_x[i])) / v_drift;
@@ -190,11 +417,13 @@ void run_lifetime_loop(int run_num = 0) {
 	FillHist("t_drift_time_vs_dqdx_corr_angle_passing_cathode", t_drift_time, corrected_dqdx, 1., 150., 0., 1.5, 3000., 0., 3000.);
         FillHist("t_drift_space_vs_dqdx_corr_angle_passing_cathode", t_drift_space, corrected_dqdx, 1., 150., 0., 1.5, 3000., 0., 3000.);
       }
+      */
     }
   }
 
   TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
-  out_rootfile = new TFile(output_rootfile_dir + "/output_lifetime_" + run_str + ".root", "RECREATE");
+  TString output_file_name = output_rootfile_dir + "/output_lifetime_" + out_suffix + ".root";
+  out_rootfile = new TFile(output_file_name, "RECREATE");
   out_rootfile -> cd();
   
   hist_selected -> Write();

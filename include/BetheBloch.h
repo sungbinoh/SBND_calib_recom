@@ -79,6 +79,7 @@ void BetheBloch::SetPdgCode(int pdg) {
   else if (abs(pdgcode) == 211) mass = 139.57039, charge = 1;
   else if (abs(pdgcode) == 321) mass = 493.677, charge = 1;
   else if (pdgcode == 2212) mass = 938.27208816, charge = 1;
+  else if (pdgcode == 1000010020) mass = 1875.612, charge = 1;
   else { cout << "Unknown pdg code " << pdgcode << endl; exit(1); }
   CreateSplines();
 }
@@ -329,7 +330,7 @@ TF1* BetheBloch::dEdx_PDF(double KE, double pitch){
   double this_dEdx_BB = meandEdx(KE);
   double par[5] = {this_kappa, beta * beta, this_xi, this_dEdx_BB, pitch};
 
-  TF1 *PDF = new TF1("", dEdx_PDF_fuction, -100., 1000., 5);
+  TF1 *PDF = new TF1("", dEdx_PDF_fuction, 0., 50., 5);
   PDF -> SetParameters(par[0], par[1], par[2], par[3], par[4]);
   return PDF;
 }

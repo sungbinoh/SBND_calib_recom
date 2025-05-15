@@ -36,6 +36,7 @@ double v_drift = 156.267;
 double mass_muon = 105.658; // [MeV]
 double mass_pion = 139.57; // [MeV]
 double mass_proton = 938.272; // [MeV]
+double mass_deutron = 1875.612; // [MeV], https://physics.nist.gov/cgi-bin/cuu/Value?mdc2mev;
 const int N_pi_type = 10;
 TString pi_type_str[N_pi_type] = {"Fake Data",
 				  "#pi^{+}_{Inel.}",
@@ -592,6 +593,41 @@ void WriteHist(){
   }
 
   for(std::map< TString, TH2D* >::iterator mapit = maphist_TH2D.begin(); mapit!=maphist_TH2D.end(); mapit++){
+    TString this_fullname=mapit->second->GetName();
+    TString this_name=this_fullname(this_fullname.Last('/')+1,this_fullname.Length());
+    TString this_suffix=this_fullname(0,this_fullname.Last('/'));
+    TDirectory *dir = out_rootfile->GetDirectory(this_suffix);
+    if(!dir){
+      out_rootfile->mkdir(this_suffix);
+    }
+    out_rootfile->cd(this_suffix);
+    mapit->second->Write(this_name);
+    out_rootfile->cd();
+  }
+}
+
+
+void WriteCanvas(){
+
+  out_rootfile->cd();
+  for(std::map< TString, TCanvas* >::iterator mapit = mapcanvas.begin(); mapit!=mapcanvas.end(); mapit++){
+    TString this_fullname=mapit->second->GetName();
+    TString this_name=this_fullname(this_fullname.Last('/')+1,this_fullname.Length());
+    TString this_suffix=this_fullname(0,this_fullname.Last('/'));
+    TDirectory *dir = out_rootfile->GetDirectory(this_suffix);
+    if(!dir){
+      out_rootfile->mkdir(this_suffix);
+    }
+    out_rootfile->cd(this_suffix);
+    mapit->second->Write(this_name);
+    out_rootfile->cd();
+  }
+}
+
+void WriteGrs(){
+
+  out_rootfile->cd();
+  for(std::map< TString, TGraph* >::iterator mapit = map_gr.begin(); mapit!=map_gr.end(); mapit++){
     TString this_fullname=mapit->second->GetName();
     TString this_name=this_fullname(this_fullname.Last('/')+1,this_fullname.Length());
     TString this_suffix=this_fullname(0,this_fullname.Last('/'));

@@ -98,7 +98,7 @@ bool evt_sel(const TTreeReaderArray<float> &sp_x, const TTreeReaderArray<float> 
 }
 
 void make_traj_plot(int current_entry, int plane, const TTreeReaderArray<float> &sp_x, const TTreeReaderArray<float> &sp_y, const TTreeReaderArray<float> &sp_z,
-		    const TTreeReaderArray<float> &dir_x, const TTreeReaderArray<float> &dir_y, const TTreeReaderArray<float> &dirx_z,
+		    const TTreeReaderArray<float> &dir_x, const TTreeReaderArray<float> &dir_y, const TTreeReaderArray<float> &dir_z,
 		    const TTreeReaderArray<float> &rr, const TTreeReaderArray<float> &dqdx, const TTreeReaderArray<float> &q_integ){
 
   vector<double> this_rr_vec;
@@ -125,8 +125,8 @@ void make_traj_plot(int current_entry, int plane, const TTreeReaderArray<float> 
       // == traj plots, post-SCE Corr.
       XYZVector sp_sce_uncorr(this_sp_x, this_sp_y, this_sp_z);
       XYZVector sp_sce_corr = sce_corr_mc -> WireToTrajectoryPosition(sp_sce_uncorr);
-      double pitch_sce_uncorr = sce_corr_mc -> meas_pitch(this_sp_x, this_sp_y, this_sp_z, this_dir_x, this_dir_y, this_dir_z, 1, false);
-      double pitch_sce_corr = sce_corr_mc -> meas_pitch(this_sp_x, this_sp_y, this_sp_z, this_dir_x, this_dir_y, this_dir_z, 1, true);
+      double pitch_sce_uncorr = sce_corr_mc -> meas_pitch(this_sp_x, this_sp_y, this_sp_z, this_dir_x, this_dir_y, this_dir_z, plane, false);
+      double pitch_sce_corr = sce_corr_mc -> meas_pitch(this_sp_x, this_sp_y, this_sp_z, this_dir_x, this_dir_y, this_dir_z, plane, true);
       double dqdx_sce_corr = this_dqdx * pitch_sce_uncorr / pitch_sce_corr;
       FillHist(Form("traj_plane%d_entry%d_z_vs_y_sce_corr", plane, current_entry), sp_sce_corr.Z(), sp_sce_corr.Y(), dqdx_sce_corr, z_bins, z_min, z_max, y_bins, y_min, y_max);
       FillHist(Form("traj_plane%d_entry%d_z_vs_x_sce_corr", plane, current_entry), sp_sce_corr.Z(), sp_sce_corr.X(), dqdx_sce_corr, z_bins, z_min, z_max, x_bins, x_min, x_max);
@@ -137,23 +137,10 @@ void make_traj_plot(int current_entry, int plane, const TTreeReaderArray<float> 
     }
   }
 
-  mapcanvas[Form("c_rr_vs_dqdx_plane%d_entry%d", plane, current_entry)] = new TCanvas(Form("c_rr_vs_dqdx_plane%d_entry%d", plane, current_entry), Form("c_rr_vs_dqdx_plane%d_entry%d", plane, current_entry), 800, 600);
-  mapcanvas[Form("c_rr_vs_dqdx_plane%d_entry%d", plane, current_entry)] -> cd();
-  TGraph *gr_rr_vs_dqdx = new TGraph(this_rr_vec.size(), &this_rr_vec[0], &this_dqdx_vec[0]);
-  TGraph *gr_rr_vs_dqdx_corr_vec = new TGraph(this_rr_vec.size(), &this_rr_vec[0], &this_dqdx_sce_corr_vec[0]);
-  TH1D *temp_hist = new TH1D("", "", 1, 0., 50.);
-  temp_hist -> GetYaxis() -> SetRangeUser(0., 5000.);
-  temp_hist -> GetXaxis() -> SetTitle("R.R. [cm]");
-  temp_hist -> GetYaxis() -> SetTitle("dQ/dx [ADC* x tick / cm]");
-  temp_hist -> Draw();
-  gr_rr_vs_dqdx -> SetLineColor(kBlue);
-  gr_rr_vs_dqdx -> SetMarkerColor(kBlue);
-  gr_rr_vs_dqdx -> SetMarkerSize(1);
-  gr_rr_vs_dqdx -> Draw("plsame");
-  gr_rr_vs_dqdx_corr_vec -> SetLineColor(kRed);
-  gr_rr_vs_dqdx_corr_vec -> SetMarkerColor(kRed);
-  gr_rr_vs_dqdx_corr_vec -> SetMarkerSize(1);
-  gr_rr_vs_dqdx_corr_vec -> Draw("plsame");
+  map_gr[Form("gr_rr_vs_dqdx_plane%d_entry%d", plane, current_entry)] = new TGraph(this_rr_vec.size(), &this_rr_vec[0], &this_dqdx_vec[0]);
+  map_gr[Form("gr_rr_vs_dqdx_plane%d_entry%d", plane, current_entry)] -> SetName(Form("gr_rr_vs_dqdx_plane%d_entry%d", plane, current_entry));
+  map_gr[Form("gr_rr_vs_dqdx_plane%d_entry%d_sce_corr", plane, current_entry)] =  new TGraph(this_rr_vec.size(), &this_rr_vec[0], &this_dqdx_sce_corr_vec[0]);
+  map_gr[Form("gr_rr_vs_dqdx_plane%d_entry%d_sce_corr", plane, current_entry)] -> SetName(Form("gr_rr_vs_dqdx_plane%d_entry%d_sce_corr", plane, current_entry));
 }
 
 void run_sce_valid(TString list_file, TString out_suffix, bool IsData = false) {
@@ -298,5 +285,6 @@ void run_sce_valid(TString list_file, TString out_suffix, bool IsData = false) {
   hist_selected -> Write();
   WriteHist();
   WriteCanvas();
+  WriteGrs();
   out_rootfile -> Close();
 }

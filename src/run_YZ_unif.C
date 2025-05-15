@@ -16,7 +16,7 @@ SCECorr *sce_corr_mc = new SCECorr(false);
 bool isdata = false;
 
 const double y_min = -200, y_max = 200, z_min = 0, z_max = 500;
-const double pixel_size = 2;
+const double pixel_size = 5;
 const int y_bins = (y_max - y_min) / pixel_size;
 const int z_bins = (z_max - z_min) / pixel_size;
 
@@ -218,10 +218,18 @@ void fill_meddqdx_yz(const std::vector<std::vector<std::vector<double>>> & dqdx,
   vector<double> local_dqdx_medians;
   for (int yi = 0; yi < y_bins; ++yi) {
     for (int zi = 0; zi < z_bins; ++zi) {
+
+      const std::vector<double>& dqdx_vec = dqdx[yi][zi];
+      if (dqdx_vec.empty()) continue;
+
       float local_median_dqdx = TMath::Median(dqdx[yi][zi].size(),&dqdx[yi][zi][0]);
       maphist_TH2D[hist_name + "_meddqdx"] -> SetBinContent(zi+1, yi+1, local_median_dqdx);
 
+      float local_min_dqdx = *std::min_element(dqdx_vec.begin(), dqdx_vec.end());
+      float local_max_dqdx = *std::max_element(dqdx_vec.begin(), dqdx_vec.end());
       local_dqdx_medians.push_back(local_median_dqdx);
+
+      cout << Form("yi, zi = %d, %d", yi, zi) << "local_min_dqdx: " << local_min_dqdx << ", local_max_dqdx: " << local_max_dqdx << endl;
     }
   }
 
@@ -396,8 +404,9 @@ void run_YZ_unif(TString list_file, TString out_suffix, bool IsData = false) {
 	  XYZVector sp_sce_corr = sce_corr_mc -> WireToTrajectoryPosition(sp_sce_uncorr);
 	  int y_sce_index = (sp_sce_corr.Y() - y_min) / pixel_size;
 	  int z_sce_index = (sp_sce_corr.Z() - z_min) / pixel_size;
+          double pitch_sce_uncorr = sce_corr_mc -> meas_pitch(sp_x0[i], sp_y0[i], sp_z0[i], dirx0[i], diry0[i], dirz0[i], 0, false);
 	  double pitch_sce_corr = sce_corr_mc -> meas_pitch(sp_x0[i], sp_y0[i], sp_z0[i], dirx0[i], diry0[i], dirz0[i], 0, true);
-	  double dqdx_sce_corr = dqdx0[i] * pitch0[i] / pitch_sce_corr;
+	  double dqdx_sce_corr = dqdx0[i] * pitch_sce_uncorr / pitch_sce_corr;
 	  
 	  if(sp_x0[i] < 0){
 	    int cos_x_index = (cos_vals_0[2] - cos_min) / cos_size;
@@ -406,6 +415,8 @@ void run_YZ_unif(TString list_file, TString out_suffix, bool IsData = false) {
 	    FillHist("plane_0_cos_zx_plus_vs_dqdx_east", cos_vals_0[2], dqdx0[i], 1., 100., -1., 1., 3000., 0., 3000.);
 
 	    if(fabs(cos_vals_0[2]) < 0.75){// && !InVeto_region_eastTPC_C(sp_y0[i], sp_z0[i])){
+	      FillHist("plane_0_dqdx_east", dqdx0[i], 1., 3000., 0., 3000.);
+	      FillHist("plane_0_dqdx_east_sce_corr", dqdx_sce_corr, 1., 3000., 0., 3000.);
 	      if (y_index >= 0 && y_index < y_bins && z_index >= 0 && z_index < z_bins) {
 		dqdx_east_0[y_index][z_index].push_back(dqdx0[i]); 
 	      }
@@ -421,7 +432,9 @@ void run_YZ_unif(TString list_file, TString out_suffix, bool IsData = false) {
 	    FillHist("plane_0_cos_zx_minus_vs_dqdx_west", cos_vals_0[3], dqdx0[i], 1., 100., -1., 1., 3000., 0., 3000.);
 
 	    if(fabs(cos_vals_0[3]) < 0.75){// && !InVeto_region_westTPC_C(sp_y0[i], sp_z0[i])){
-              if (y_index >= 0 && y_index < y_bins && z_index >= 0 && z_index < z_bins) {
+	      FillHist("plane_0_dqdx_west", dqdx0[i], 1., 3000., 0., 3000.);
+	      FillHist("plane_0_dqdx_west_sce_corr", dqdx_sce_corr, 1., 3000., 0., 3000.);
+	      if (y_index >= 0 && y_index < y_bins && z_index >= 0 && z_index < z_bins) {
                 dqdx_west_0[y_index][z_index].push_back(dqdx0[i]);
               }
 	      if (y_sce_index >= 0 && y_sce_index < y_bins && z_sce_index >= 0 && z_sce_index < z_bins) {
@@ -448,8 +461,9 @@ void run_YZ_unif(TString list_file, TString out_suffix, bool IsData = false) {
           XYZVector sp_sce_corr = sce_corr_mc -> WireToTrajectoryPosition(sp_sce_uncorr);
           int y_sce_index = (sp_sce_corr.Y() - y_min) / pixel_size;
           int z_sce_index = (sp_sce_corr.Z() - z_min) / pixel_size;
+          double pitch_sce_uncorr = sce_corr_mc -> meas_pitch(sp_x1[i], sp_y1[i], sp_z1[i], dirx1[i], diry1[i], dirz1[i], 1, false);
           double pitch_sce_corr = sce_corr_mc -> meas_pitch(sp_x1[i], sp_y1[i], sp_z1[i], dirx1[i], diry1[i], dirz1[i], 1, true);
-          double dqdx_sce_corr = dqdx1[i] * pitch1[i] / pitch_sce_corr;
+          double dqdx_sce_corr = dqdx1[i] * pitch_sce_uncorr / pitch_sce_corr;
 
 	  if(sp_x1[i] < 0){
 	    int cos_x_index = (cos_vals_1[3] - cos_min) / cos_size;
@@ -458,7 +472,9 @@ void run_YZ_unif(TString list_file, TString out_suffix, bool IsData = false) {
 	    FillHist("plane_1_cos_zx_minus_vs_dqdx_east", cos_vals_1[3], dqdx1[i], 1., 100., -1., 1., 3000., 0., 3000.);
 
 	    if(fabs(cos_vals_1[3]) < 0.75){// && !InVeto_region_eastTPC_C(sp_y1[i], sp_z1[i])){
-              if (y_index >= 0 && y_index < y_bins && z_index >= 0 && z_index < z_bins) {
+	      FillHist("plane_1_dqdx_east", dqdx1[i], 1., 3000., 0., 3000.);
+	      FillHist("plane_1_dqdx_east_sce_corr", dqdx_sce_corr, 1., 3000., 0., 3000.);
+	      if (y_index >= 0 && y_index < y_bins && z_index >= 0 && z_index < z_bins) {
                 dqdx_east_1[y_index][z_index].push_back(dqdx1[i]);
               }
               if (y_sce_index >= 0 && y_sce_index < y_bins && z_sce_index >= 0 && z_sce_index < z_bins) {
@@ -473,7 +489,9 @@ void run_YZ_unif(TString list_file, TString out_suffix, bool IsData = false) {
 	    FillHist("plane_1_cos_zx_plus_vs_dqdx_west", cos_vals_1[2], dqdx1[i], 1., 100., -1., 1., 3000., 0., 3000.);
 
 	    if(fabs(cos_vals_1[2]) < 0.75){// && !InVeto_region_westTPC_C(sp_y1[i], sp_z1[i])){
-              if (y_index >= 0 && y_index < y_bins && z_index >= 0 && z_index < z_bins) {
+	      FillHist("plane_1_dqdx_west", dqdx1[i], 1., 3000., 0., 3000.);
+              FillHist("plane_1_dqdx_west_sce_corr", dqdx_sce_corr, 1., 3000., 0., 3000.);
+	      if (y_index >= 0 && y_index < y_bins && z_index >= 0 && z_index < z_bins) {
                 dqdx_west_1[y_index][z_index].push_back(dqdx1[i]);
               }
               if (y_sce_index >= 0 && y_sce_index < y_bins && z_sce_index >= 0 && z_sce_index < z_bins) {
@@ -500,8 +518,9 @@ void run_YZ_unif(TString list_file, TString out_suffix, bool IsData = false) {
           XYZVector sp_sce_corr = sce_corr_mc -> WireToTrajectoryPosition(sp_sce_uncorr);
           int y_sce_index = (sp_sce_corr.Y() - y_min) / pixel_size;
           int z_sce_index = (sp_sce_corr.Z() - z_min) / pixel_size;
-          double pitch_sce_corr = sce_corr_mc -> meas_pitch(sp_x2[i], sp_y2[i], sp_z2[i], dirx2[i], diry2[i], dirz2[i], 1, true);
-          double dqdx_sce_corr = dqdx2[i] * pitch2[i] / pitch_sce_corr;
+	  double pitch_sce_uncorr = sce_corr_mc -> meas_pitch(sp_x2[i], sp_y2[i], sp_z2[i], dirx2[i], diry2[i], dirz2[i], 2, false);
+	  double pitch_sce_corr = sce_corr_mc -> meas_pitch(sp_x2[i], sp_y2[i], sp_z2[i], dirx2[i], diry2[i], dirz2[i], 2, true);
+          double dqdx_sce_corr = dqdx2[i] * pitch_sce_uncorr / pitch_sce_corr;
 
 	  if(sp_x2[i] < 0){
 	    int cos_x_index = (cos_vals_2[1] - cos_min) / cos_size;
@@ -510,7 +529,9 @@ void run_YZ_unif(TString list_file, TString out_suffix, bool IsData = false) {
 	    FillHist("plane_2_cos_zx_vs_dqdx_east", cos_vals_2[1], dqdx2[i], 1., 100., -1., 1., 3000., 0., 3000.);
 
 	    if(fabs(cos_vals_2[1]) < 0.75){// && !InVeto_region_eastTPC_C(sp_y2[i], sp_z2[i])){
-              if (y_index >= 0 && y_index < y_bins && z_index >= 0 && z_index < z_bins) {
+	      FillHist("plane_2_dqdx_east", dqdx2[i], 1., 3000., 0., 3000.);
+              FillHist("plane_2_dqdx_east_sce_corr", dqdx_sce_corr, 1., 3000., 0., 3000.);
+	      if (y_index >= 0 && y_index < y_bins && z_index >= 0 && z_index < z_bins) {
                 dqdx_east_2[y_index][z_index].push_back(dqdx2[i]);
               }
               if (y_sce_index >= 0 && y_sce_index < y_bins && z_sce_index >= 0 && z_sce_index < z_bins) {
@@ -525,6 +546,8 @@ void run_YZ_unif(TString list_file, TString out_suffix, bool IsData = false) {
 	    FillHist("plane_2_cos_zx_vs_dqdx_west", cos_vals_2[1], dqdx2[i], 1., 100., -1., 1., 3000., 0., 3000.);
 
 	    if(fabs(cos_vals_2[1]) < 0.75){// && !InVeto_region_westTPC_C(sp_y2[i], sp_z2[i])){
+	      FillHist("plane_2_dqdx_west", dqdx2[i], 1., 3000., 0., 3000.);
+              FillHist("plane_2_dqdx_west_sce_corr", dqdx_sce_corr, 1., 3000., 0., 3000.);
               if (y_index >= 0 && y_index < y_bins && z_index >= 0 && z_index < z_bins) {
                 dqdx_west_2[y_index][z_index].push_back(dqdx2[i]);
               }

@@ -233,9 +233,9 @@ void run_recom_loop_emb(TString list_file, TString out_suffix, bool IsData = fal
   //if(!isdata) fileListPath = sample_list_dir + "/list_2025A_Sprint25Dev_MC_bnbcosmics_calib_ntuple.txt";
   //if(!isdata) fileListPath = sample_list_dir + "/list_2024B_MC_calib_ntuple.txt";
 
-  if(!isdata) fileListPath = sample_list_dir + "/list_2025A_Sprint25Dev_data_calib_ntuple_sungbino.txt";
+  //if(!isdata) fileListPath = sample_list_dir + "/list_2025A_Sprint25Dev_data_calib_ntuple_sungbino.txt";
   //if(!isdata) fileListPath = sample_list_dir + "/list_2025A_GoldenRun_calib_ntuple_sungbino.txt";
-  isdata = true;
+  //isdata = true;
   cout << "Opening : " << fileListPath << endl;
   // Check if the file exists
   std::ifstream file(fileListPath.Data());  // Convert TString to const char*
@@ -413,6 +413,10 @@ void run_recom_loop_emb(TString list_file, TString out_suffix, bool IsData = fal
 
       // == Track length 60 cm cut
       if(this_reco_trk_len < 60. || !passing_cathode) continue;
+
+      Fill_hit_plots("plane0_trklen_60cm_passing_cathode", rr0, dqdx0, sp_x0, cos_xy, cos_yz, cos_zx, cos_plus_zprimex, cos_minus_zprimex);
+      Fill_hit_plots("plane1_trklen_60cm_passing_cathode", rr1, dqdx1, sp_x1, cos_xy, cos_yz, cos_zx, cos_plus_zprimex, cos_minus_zprimex);
+      Fill_hit_plots("plane2_trklen_60cm_passing_cathode", rr2, dqdx2, sp_x2, cos_xy, cos_yz, cos_zx, cos_plus_zprimex, cos_minus_zprimex);
 
       // == These are for checking impact of event selections
       /*

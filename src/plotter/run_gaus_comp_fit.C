@@ -63,7 +63,7 @@ void Write_1D_hist(TH1D *in, TString outname, TString particle, TString latex_st
 
     TF1 *this_Langau =  new TF1("this_Langau", langaufun, fitting_range[0], fitting_range[1], 4);
     this_Langau -> SetParameters(this_Langau_fit -> GetParameters());
-     this_Langau -> SetNpx(1000);
+    this_Langau -> SetNpx(1000);
     this_Langau -> SetLineColor(kRed);
     this_Langau -> SetLineWidth(2);
     this_Langau -> Draw("lsame");
@@ -114,7 +114,7 @@ void Write_1D_hist(TH1D *in, TString outname, TString particle, TString latex_st
   latex_particle.SetTextSize(0.03);
   latex_Nhits.SetTextSize(0.06);
   latex_method.SetTextSize(0.06);
-  if(isdata) latex_ProtoDUNE.DrawLatex(0.16, 0.96, "#font[62]{SBND Data} Run " + run_str + ", " + plane);
+  if(isdata) latex_ProtoDUNE.DrawLatex(0.16, 0.96, "#font[62]{SBND Data} " + run_str + ", " + plane);
   else latex_ProtoDUNE.DrawLatex(0.16, 0.96, "#font[62]{SBND Simulation} #font[42]{#it{#scale[0.8]{Preliminary}}}");
   latex_particle.DrawLatex(0.95, 0.96, particle_label_str);
   latex_method.DrawLatex(0.18, 0.87, latex_str);
@@ -206,26 +206,16 @@ void make_gr_and_save(){
 }
 
 
-void run_gaus_comp_fit(int run_num = 0){
+void run_gaus_comp_fit(TString filename, TString suffix){
 
-  if(run_num != 0){
-    isdata = true;
-    run_str = TString::Format("%d", run_num);
-  }
-  
   setTDRStyle();
-
-  TString filename = "output_dedx_" + run_str + "_syst.root";
-  if(!isdata){
-    filename = "output_dedx_2023B_GENIE_CV.root";
-    run_str = "MC";
-  }
-
-  TString suffix[] = {"", "_NE", "_NW", "_SE", "_SW", "_cafv", "_meddqdx"};
+  run_str = suffix;
+  
+  TString suffixes[] = {"", "_NE", "_NW", "_SE", "_SW", "_cafv", "_meddqdx"};
   for(int i = 0; i < 7; i++){
-    Fit_rr_vs_dedx(filename, "plane0", suffix[i], 10., 200.);
-    Fit_rr_vs_dedx(filename, "plane1", suffix[i], 10., 200.);
-    Fit_rr_vs_dedx(filename, "plane2", suffix[i], 10., 200.);
+    Fit_rr_vs_dedx(filename, "plane0", suffixes[i], 10., 200.);
+    Fit_rr_vs_dedx(filename, "plane1", suffixes[i], 10., 200.);
+    Fit_rr_vs_dedx(filename, "plane2", suffixes[i], 10., 200.);
   }
   
   make_gr_and_save();

@@ -5,7 +5,8 @@
 #include "BetheBloch.h"
 #include <iostream>
 
-TSpline3 * muon_sp_range_to_KE = Get_sp_range_KE(mass_muon);
+BetheBloch *muon_BB = new BetheBloch(13);
+//TSpline3 * muon_sp_range_to_KE = Get_sp_range_KE(mass_muon);
 
 bool isdata = false;
 TString run_str = "";
@@ -99,16 +100,17 @@ void draw(TString y_var, double x_min, double x_max, double y_min, double y_max,
     vector<double> BB_dedx_MPV;
     for(int i = 0; i < N_BB_points; i++){
       double this_rr = rr_min + rr_step * (i + 0.);
-      double this_KE = muon_sp_range_to_KE -> Eval(this_rr);
+      double this_KE = muon_BB -> KEFromRangeSpline(this_rr);
       double gamma = (this_KE/mass_muon)+1.0;
       double beta = TMath::Sqrt(1-(1.0/(gamma*gamma)));
-      double this_xi = Landau_xi(this_KE, mean_pitch, mass_muon);
-      double this_Wmax = Get_Wmax(this_KE, mass_muon);
+      double this_xi = muon_BB -> Landau_xi(this_KE, mean_pitch);
+      double this_Wmax = muon_BB -> Get_Wmax(this_KE);
       double this_kappa = this_xi / this_Wmax;
-      double this_dEdx_BB = meandEdx(this_KE, mass_muon);
+      double this_dEdx_BB = muon_BB -> meandEdx(this_KE);
       double par[5] = {this_kappa, beta * beta, this_xi, this_dEdx_BB, mean_pitch};
-      TF1 * this_dEdx_PDF = dEdx_PDF(par);
+      TF1 * this_dEdx_PDF = muon_BB -> dEdx_PDF(this_KE, mean_pitch);
       double this_dEdx_MPV = this_dEdx_PDF -> GetMaximumX();
+      delete this_dEdx_PDF;
       
       BB_rr.push_back(this_rr);
       BB_dedx_MPV.push_back(this_dEdx_MPV);
@@ -132,17 +134,18 @@ void draw(TString y_var, double x_min, double x_max, double y_min, double y_max,
     vector<double> BB_dedx_MPV;
     for(int i = 0; i < N_BB_points; i++){
       double this_rr = rr_min + rr_step * (i + 0.);
-      double this_KE = muon_sp_range_to_KE -> Eval(this_rr);
+      double this_KE = muon_BB -> KEFromRangeSpline(this_rr);
       double gamma = (this_KE/mass_muon)+1.0;
       double beta = TMath::Sqrt(1-(1.0/(gamma*gamma)));
-      double this_xi = Landau_xi(this_KE, mean_pitch, mass_muon);
-      double this_Wmax = Get_Wmax(this_KE, mass_muon);
+      double this_xi = muon_BB -> Landau_xi(this_KE, mean_pitch);
+      double this_Wmax = muon_BB -> Get_Wmax(this_KE);
       double this_kappa = this_xi / this_Wmax;
-      double this_dEdx_BB = meandEdx(this_KE, mass_muon);
+      double this_dEdx_BB = muon_BB -> meandEdx(this_KE);
       double par[5] = {this_kappa, beta * beta, this_xi, this_dEdx_BB, mean_pitch};
-      TF1 * this_dEdx_PDF = dEdx_PDF(par);
+      TF1 * this_dEdx_PDF = muon_BB -> dEdx_PDF(this_KE, mean_pitch);
       double this_dEdx_MPV = this_dEdx_PDF -> GetMaximumX();
-
+      delete this_dEdx_PDF;
+      
       BB_rr.push_back(this_rr);
       BB_dedx_MPV.push_back(this_dEdx_MPV);
     }
@@ -172,13 +175,8 @@ void draw(TString y_var, double x_min, double x_max, double y_min, double y_max,
   
 }
 
-void draw_gaus_comp_data_vs_MC(int run_num = 0){
-  
-  if(run_num != 0){
-    isdata = true;
-    run_str = TString::Format("%d", run_num);
-  }
-  
+void draw_gaus_comp_data_vs_MC(){
+   
   setTDRStyle();
   draw("MPV", 5., 200., 1., 4., "dE/dx MPV");
   draw("sigmaG", 5., 200., 0., 1., "#sigma_{G}");

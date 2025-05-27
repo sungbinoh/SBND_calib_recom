@@ -23,6 +23,8 @@ class SCECorr {
   double meas_pitch(double spx,  double spy, double spz, double dirx, double diry, double dirz, int plane, bool apply_sce = true);
   XYZVector GetCalPosOffsets(const XYZVector& in);
   XYZVector WireToTrajectoryPosition(const XYZVector& in);
+  XYZVector GetEfieldOffsets(const XYZVector& in);
+  double GetEfield(const XYZVector& in);
 
  private:
   bool _isdata;
@@ -77,7 +79,7 @@ void SCECorr::ReadHistograms(){
   // == SCE map
 
   TString sce_map_file_path = datapath + "/SCEoffsets_SBND_E500_dualmap_voxelTH3.root";
-  if(sbnddata_v == "v01_28_00"){
+  if(sbnddata_v == "v01_28_00"){ // == use this for single map
 
     sce_map_file_path = datapath + "/SCEoffsets_SBND_E500_voxelTH3.root";
     TFile *infile = TFile::Open(sce_map_file_path);
@@ -122,7 +124,7 @@ void SCECorr::ReadHistograms(){
     hTrueEFieldY_W->SetDirectory(0);
     hTrueEFieldZ_W->SetDirectory(0);
   }
-  else{
+  else{ // == default is dual map
     TFile *infile = TFile::Open(sce_map_file_path);
     // E TPC
     hTrueFwdX_E = (TH3F*) infile->Get("TrueFwd_Displacement_X_E");
@@ -246,6 +248,43 @@ double SCECorr::meas_pitch(double spx, double spy, double spz, double dirx, doub
   }
   
   return pitch;
+}
+
+XYZVector SCECorr::GetEfieldOffsets(const XYZVector& in){
+  // == This is for getting offset in E-field for a space point. Therefore, the input space point should be SCE corrected one.
+  std::vector<double> theEfieldOffsets;
+  double xx=in.X(), yy=in.Y(), zz=in.Z();
+  double offset_x=0., offset_y=0., offset_z=0.;
+
+  if(xx<-199.999){xx=-199.999;}
+  else if(xx>199.999){xx=199.999;}
+  if(yy<-199.999){yy=-199.999;}
+  else if(yy>199.999){yy=199.999;}
+  if(zz<0.001){zz=0.001;}
+  else if(zz>499.999){zz=499.999;}
+  if(xx < 0){
+    offset_x = hTrueEFieldX_E->Interpolate(xx, yy, zz);
+    offset_y = hTrueEFieldY_E->Interpolate(xx, yy, zz);
+    offset_z = hTrueEFieldZ_E->Interpolate(xx, yy, zz);
+  }
+  else{
+    offset_x = hTrueEFieldX_W->Interpolate(xx, yy, zz);
+    offset_y = hTrueEFieldY_W->Interpolate(xx, yy, zz);
+    offset_z = hTrueEFieldZ_W->Interpolate(xx, yy, zz);
+  }
+  theEfieldOffsets = {offset_x, offset_y, offset_z};
+
+  return { theEfieldOffsets[0], theEfieldOffsets[1], theEfieldOffsets[2] };
+}
+
+double SCECorr::GetEfield(const XYZVector& in){
+  XYZVector EfieldOffsets = GetEfieldOffsets(in);
+  XYZVector xunit{1., 0., 0.};
+  EfieldOffsets = EfieldOffsets + xunit;
+  EfieldOffsets = EfieldOffsets * 0.5;
+  double EField = EfieldOffsets.R();
+
+  return EField;
 }
 
 

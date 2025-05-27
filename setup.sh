@@ -44,8 +44,8 @@ then
     source /cvmfs/larsoft.opensciencegrid.org/spack-packages/setup-env.sh
     export SAMPLE_PATH=$DATA_PATH/sample_list/sbndgpvm/
     export SBND_DATA_PATH=/cvmfs/sbnd.opensciencegrid.org/products/sbnd/sbnd_data/
-   export SBNDDATA_VERSION=v01_28_00
-    #export SBNDDATA_VERSION=v01_30_00
+    #export SBNDDATA_VERSION=v01_28_00
+    export SBNDDATA_VERSION=v01_30_00
 fi
 
 if [[ `hostname` == *"dune-gpu01"* ]]

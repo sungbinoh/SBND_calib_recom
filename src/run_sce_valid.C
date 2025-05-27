@@ -134,6 +134,11 @@ void make_traj_plot(int current_entry, int plane, const TTreeReaderArray<float> 
       this_rr_vec.push_back(this_rr);
       this_dqdx_vec.push_back(this_dqdx);
       this_dqdx_sce_corr_vec.push_back(dqdx_sce_corr);
+
+
+      XYZVector EfieldOffset = sce_corr_mc -> GetEfieldOffsets(sp_sce_corr);
+      double sce_efield = sce_corr_mc -> GetEfield(sp_sce_corr);
+      cout << Form("space point (%f, %f, %f): EfieldOffset = (%f, %f, %f), Efield = %f", sp_sce_corr.X(), sp_sce_corr.Y(), sp_sce_corr.Z(), EfieldOffset.X(), EfieldOffset.Y(), EfieldOffset.Z(), sce_efield) << endl;
     }
   }
 

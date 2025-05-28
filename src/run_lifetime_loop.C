@@ -6,8 +6,10 @@
 #include "TTreeReaderValue.h"
 #include "mylib.h"
 #include "SCECorr.h"
+#include "recom.h"
 
 SCECorr *sce_corr_mc = new SCECorr(false);
+recom *recom_fns = new recom();
 bool isdata = false;
 
 //int nGroupedWires = 10;
@@ -134,7 +136,14 @@ void fill_lifetime_hists(int nGroupedWires, int plane, const TTreeReaderArray<fl
 
   double dQdx_sce_sum=0;
   double x_sce_sum=0;
-  
+
+  vector<double> dedx_assumes = {1.7, 1.8, 1.9, 2.0, 2.1, 2.2, 2.3};
+  vector<TString> dedx_assume_str = {"1p7", "1p8", "1p9", "2p0", "2p1", "2p2", "2p3"};
+  vector<double> mb_dQdx_sum_vec_dedx_assumes(dedx_assumes.size(), 0.0);
+  vector<double> mb_x_sce_sum_vec_dedx_assumes(dedx_assumes.size(), 0.0);
+  vector<double> emb_dQdx_sum_vec_dedx_assumes(dedx_assumes.size(), 0.0);
+  vector<double> emb_x_sce_sum_vec_dedx_assumes(dedx_assumes.size(), 0.0);
+
   for(int i = start_index; i <= end_index; i++){
 
     dQdx_sum += dqdx[i];
@@ -149,22 +158,55 @@ void fill_lifetime_hists(int nGroupedWires, int plane, const TTreeReaderArray<fl
 
     dQdx_sce_sum += dqdx_sce_corr;
     x_sce_sum += sp_sce_corr.X();
+
+    double sce_efield = sce_corr_mc -> GetEfield(sp_sce_corr);
+    vector<double> mb_recom_factor_nom_efield;
+    vector<double> mb_recom_factor_sce_efield;
+    vector<double> emb_recom_factor_nom_efield;
+    vector<double> emb_recom_factor_sce_efield;
     
+    for(unsigned int j = 0; j < dedx_assumes.size(); j++){
+      double this_dedx = dedx_assumes.at(j);
+      double mb_recom_fac_nom_field = recom_fns -> dedx2recomfactor_modbox(this_dedx, 0.5);
+      double mb_recom_fac_sce_field = recom_fns -> dedx2recomfactor_modbox(this_dedx, sce_efield);
+      double mb_recom_fac_corr_dqdx = dqdx_sce_corr * mb_recom_fac_nom_field / mb_recom_fac_sce_field;
+      mb_dQdx_sum_vec_dedx_assumes.at(j) = mb_dQdx_sum_vec_dedx_assumes.at(j) + mb_recom_fac_corr_dqdx;
+
+      double emb_recom_fac_nom_field = recom_fns -> dedx2recomfactor_emb(this_dedx, 0.5);
+      double emb_recom_fac_sce_field = recom_fns -> dedx2recomfactor_emb(this_dedx, sce_efield);
+      double emb_recom_fac_corr_dqdx = dqdx_sce_corr * emb_recom_fac_nom_field / emb_recom_fac_sce_field;
+      emb_dQdx_sum_vec_dedx_assumes.at(j) = emb_dQdx_sum_vec_dedx_assumes.at(j) + emb_recom_fac_corr_dqdx;
+    }
+
     count += 1;
 
     //Fill hist if swap TPC
     if( i < end_index && (sp_x[i] * sp_x[i+1]) < 0.){
       FillHist(Form("h_dQdx_xDrift_%dwires_plane%d", nGroupedWires, plane), x_sum/count, dQdx_sum/count, 1., NBinsX, minX, maxX, NBinsdQdx, mindQdx, maxdQdx);
       FillHist(Form("h_dQdx_xDrift_%dwires_plane%d_sce_corr", nGroupedWires, plane), x_sce_sum/count, dQdx_sce_sum/count, 1., NBinsX, minX, maxX, NBinsdQdx, mindQdx, maxdQdx);
-      
+
+      for(unsigned int j = 0; j < dedx_assumes.size(); j++){
+	FillHist(Form("h_dQdx_xDrift_%dwires_plane%d_sce_corr_e_distor_mb_dedx", nGroupedWires, plane) + dedx_assume_str.at(j), x_sce_sum/count, mb_dQdx_sum_vec_dedx_assumes.at(j) / count, 1., NBinsX, minX, maxX, NBinsdQdx, mindQdx, maxdQdx);
+	FillHist(Form("h_dQdx_xDrift_%dwires_plane%d_sce_corr_e_distor_emb_dedx", nGroupedWires, plane) + dedx_assume_str.at(j), x_sce_sum/count, emb_dQdx_sum_vec_dedx_assumes.at(j) / count, 1., NBinsX, minX, maxX, NBinsdQdx, mindQdx, maxdQdx);
+      }
+
       if(-200. < x_sum/count && x_sum/count < 0.){
 	FillHist(Form("h_dQdx_tDriftE_%dwires_plane%d", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
 	FillHist(Form("h_dQdx_tDriftE_%dwires_plane%d_sce_corr", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sce_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+
+	for(unsigned int j = 0; j < dedx_assumes.size(); j++){
+	  FillHist(Form("h_dQdx_tDriftE_%dwires_plane%d_sce_corr_e_distor_mb_dedx", nGroupedWires, plane) + dedx_assume_str.at(j), t_sum/(count*2000) - 0.2 - trk_t0/1000000, mb_dQdx_sum_vec_dedx_assumes.at(j)/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+	  FillHist(Form("h_dQdx_tDriftE_%dwires_plane%d_sce_corr_e_distor_emb_dedx", nGroupedWires, plane) + dedx_assume_str.at(j), t_sum/(count*2000) - 0.2 - trk_t0/1000000, emb_dQdx_sum_vec_dedx_assumes.at(j)/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+	}
       }
-      
       if(0. < x_sum/count && x_sum/count < 200.){
 	FillHist(Form("h_dQdx_tDriftW_%dwires_plane%d", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
 	FillHist(Form("h_dQdx_tDriftW_%dwires_plane%d_sce_corr", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sce_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+
+	for(unsigned int j = 0; j < dedx_assumes.size(); j++){
+          FillHist(Form("h_dQdx_tDriftW_%dwires_plane%d_sce_corr_e_distor_mb_dedx", nGroupedWires, plane) + dedx_assume_str.at(j), t_sum/(count*2000) - 0.2 - trk_t0/1000000, mb_dQdx_sum_vec_dedx_assumes.at(j)/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+          FillHist(Form("h_dQdx_tDriftW_%dwires_plane%d_sce_corr_e_distor_emb_dedx", nGroupedWires, plane) + dedx_assume_str.at(j), t_sum/(count*2000) - 0.2 - trk_t0/1000000, emb_dQdx_sum_vec_dedx_assumes.at(j)/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+        }
       }				
       
       dQdx_sum = 0.;
@@ -174,20 +216,40 @@ void fill_lifetime_hists(int nGroupedWires, int plane, const TTreeReaderArray<fl
 
       dQdx_sce_sum = 0.;
       x_sce_sum = 0.;
+
+      for(unsigned int j = 0; j < dedx_assumes.size(); j++){
+	mb_dQdx_sum_vec_dedx_assumes.at(j) = 0.;
+	emb_dQdx_sum_vec_dedx_assumes.at(j) = 0.;
+      }
     }
     else if(i == end_index){
 
       FillHist(Form("h_dQdx_xDrift_%dwires_plane%d", nGroupedWires, plane), x_sum/count, dQdx_sum/count, 1., NBinsX, minX, maxX, NBinsdQdx, mindQdx, maxdQdx);
       FillHist(Form("h_dQdx_xDrift_%dwires_plane%d_sce_corr", nGroupedWires, plane), x_sce_sum/count, dQdx_sce_sum/count, 1., NBinsX, minX, maxX, NBinsdQdx, mindQdx, maxdQdx);
 
+      for(unsigned int j = 0; j < dedx_assumes.size(); j++){
+        FillHist(Form("h_dQdx_xDrift_%dwires_plane%d_sce_corr_e_distor_mb_dedx", nGroupedWires, plane) + dedx_assume_str.at(j), x_sce_sum/count, mb_dQdx_sum_vec_dedx_assumes.at(j) / count, 1., NBinsX, minX, maxX, NBinsdQdx, mindQdx, maxdQdx);
+        FillHist(Form("h_dQdx_xDrift_%dwires_plane%d_sce_corr_e_distor_emb_dedx", nGroupedWires, plane) + dedx_assume_str.at(j), x_sce_sum/count, emb_dQdx_sum_vec_dedx_assumes.at(j) / count, 1., NBinsX, minX, maxX, NBinsdQdx, mindQdx, maxdQdx);
+      }
+
       if(-200. < x_sum/count && x_sum/count < 0.){
 	FillHist(Form("h_dQdx_tDriftE_%dwires_plane%d", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
 	FillHist(Form("h_dQdx_tDriftE_%dwires_plane%d_sce_corr", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sce_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+
+	for(unsigned int j = 0; j < dedx_assumes.size(); j++){
+          FillHist(Form("h_dQdx_tDriftE_%dwires_plane%d_sce_corr_e_distor_mb_dedx", nGroupedWires, plane) + dedx_assume_str.at(j), t_sum/(count*2000) - 0.2 - trk_t0/1000000, mb_dQdx_sum_vec_dedx_assumes.at(j)/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+          FillHist(Form("h_dQdx_tDriftE_%dwires_plane%d_sce_corr_e_distor_emb_dedx", nGroupedWires, plane) + dedx_assume_str.at(j), t_sum/(count*2000) - 0.2 - trk_t0/1000000, emb_dQdx_sum_vec_dedx_assumes.at(j)/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+        }
       }
       
       if(0. < x_sum/count && x_sum/count < 200.){
 	FillHist(Form("h_dQdx_tDriftW_%dwires_plane%d", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
         FillHist(Form("h_dQdx_tDriftW_%dwires_plane%d_sce_corr", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sce_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+
+	for(unsigned int j = 0; j < dedx_assumes.size(); j++){
+          FillHist(Form("h_dQdx_tDriftW_%dwires_plane%d_sce_corr_e_distor_mb_dedx", nGroupedWires, plane) + dedx_assume_str.at(j), t_sum/(count*2000) - 0.2 - trk_t0/1000000, mb_dQdx_sum_vec_dedx_assumes.at(j)/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+          FillHist(Form("h_dQdx_tDriftW_%dwires_plane%d_sce_corr_e_distor_emb_dedx", nGroupedWires, plane) + dedx_assume_str.at(j), t_sum/(count*2000) - 0.2 - trk_t0/1000000, emb_dQdx_sum_vec_dedx_assumes.at(j)/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+        }
       }
       
       dQdx_sum = 0.;
@@ -197,6 +259,11 @@ void fill_lifetime_hists(int nGroupedWires, int plane, const TTreeReaderArray<fl
 
       dQdx_sce_sum = 0.;
       x_sce_sum = 0.;
+
+      for(unsigned int j = 0; j < dedx_assumes.size(); j++){
+        mb_dQdx_sum_vec_dedx_assumes.at(j) = 0.;
+        emb_dQdx_sum_vec_dedx_assumes.at(j) = 0.;
+      }
     }
     else{
       
@@ -205,14 +272,29 @@ void fill_lifetime_hists(int nGroupedWires, int plane, const TTreeReaderArray<fl
 	FillHist(Form("h_dQdx_xDrift_%dwires_plane%d", nGroupedWires, plane), x_sum/count, dQdx_sum/count, 1., NBinsX, minX, maxX, NBinsdQdx, mindQdx, maxdQdx);
 	FillHist(Form("h_dQdx_xDrift_%dwires_plane%d_sce_corr", nGroupedWires, plane), x_sce_sum/count, dQdx_sce_sum/count, 1., NBinsX, minX, maxX, NBinsdQdx, mindQdx, maxdQdx);
 
+	for(unsigned int j = 0; j < dedx_assumes.size(); j++){
+	  FillHist(Form("h_dQdx_xDrift_%dwires_plane%d_sce_corr_e_distor_mb_dedx", nGroupedWires, plane) + dedx_assume_str.at(j), x_sce_sum/count, mb_dQdx_sum_vec_dedx_assumes.at(j) / count, 1., NBinsX, minX, maxX, NBinsdQdx, mindQdx, maxdQdx);
+	  FillHist(Form("h_dQdx_xDrift_%dwires_plane%d_sce_corr_e_distor_emb_dedx", nGroupedWires, plane) + dedx_assume_str.at(j), x_sce_sum/count, emb_dQdx_sum_vec_dedx_assumes.at(j) / count, 1., NBinsX, minX, maxX, NBinsdQdx, mindQdx, maxdQdx);
+	}
+
 	if(-200. < x_sum/count && x_sum/count < 0.){
 	  FillHist(Form("h_dQdx_tDriftE_%dwires_plane%d", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
 	  FillHist(Form("h_dQdx_tDriftE_%dwires_plane%d_sce_corr", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sce_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+
+	  for(unsigned int j = 0; j < dedx_assumes.size(); j++){
+	    FillHist(Form("h_dQdx_tDriftE_%dwires_plane%d_sce_corr_e_distor_mb_dedx", nGroupedWires, plane) + dedx_assume_str.at(j), t_sum/(count*2000) - 0.2 - trk_t0/1000000, mb_dQdx_sum_vec_dedx_assumes.at(j)/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+	    FillHist(Form("h_dQdx_tDriftE_%dwires_plane%d_sce_corr_e_distor_emb_dedx", nGroupedWires, plane) + dedx_assume_str.at(j), t_sum/(count*2000) - 0.2 - trk_t0/1000000, emb_dQdx_sum_vec_dedx_assumes.at(j)/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+	  }
 	}
 	
 	if(0. < x_sum/count && x_sum/count < 200.){
 	  FillHist(Form("h_dQdx_tDriftW_%dwires_plane%d", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
           FillHist(Form("h_dQdx_tDriftW_%dwires_plane%d_sce_corr", nGroupedWires, plane), t_sum/(count*2000) - 0.2 - trk_t0/1000000, dQdx_sce_sum/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+
+	  for(unsigned int j = 0; j < dedx_assumes.size(); j++){
+	    FillHist(Form("h_dQdx_tDriftW_%dwires_plane%d_sce_corr_e_distor_mb_dedx", nGroupedWires, plane) + dedx_assume_str.at(j), t_sum/(count*2000) - 0.2 - trk_t0/1000000, mb_dQdx_sum_vec_dedx_assumes.at(j)/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+	    FillHist(Form("h_dQdx_tDriftW_%dwires_plane%d_sce_corr_e_distor_emb_dedx", nGroupedWires, plane) + dedx_assume_str.at(j), t_sum/(count*2000) - 0.2 - trk_t0/1000000, emb_dQdx_sum_vec_dedx_assumes.at(j)/count, 1., NBinsT, minT, maxT, NBinsdQdx, mindQdx, maxdQdx);
+	  }
 	}
 	
 	dQdx_sum = 0.;
@@ -222,6 +304,11 @@ void fill_lifetime_hists(int nGroupedWires, int plane, const TTreeReaderArray<fl
 
 	dQdx_sce_sum = 0.;
 	x_sce_sum = 0.;
+
+	for(unsigned int j = 0; j < dedx_assumes.size(); j++){
+	  mb_dQdx_sum_vec_dedx_assumes.at(j) = 0.;
+	  emb_dQdx_sum_vec_dedx_assumes.at(j) = 0.;
+	}
       }
     }
   }

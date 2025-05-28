@@ -137,13 +137,13 @@ void fill_lifetime_hists(int nGroupedWires, int plane, const TTreeReaderArray<fl
   double dQdx_sce_sum=0;
   double x_sce_sum=0;
 
-  vector<double> dedx_assumes{1.7, 1.8, 1.9, 2.0, 2.1, 2.2, 2.3};
+  vector<double> dedx_assumes = {1.7, 1.8, 1.9, 2.0, 2.1, 2.2, 2.3};
   vector<TString> dedx_assume_str = {"1p7", "1p8", "1p9", "2p0", "2p1", "2p2", "2p3"};
   vector<double> mb_dQdx_sum_vec_dedx_assumes(dedx_assumes.size(), 0.0);
   vector<double> mb_x_sce_sum_vec_dedx_assumes(dedx_assumes.size(), 0.0);
   vector<double> emb_dQdx_sum_vec_dedx_assumes(dedx_assumes.size(), 0.0);
   vector<double> emb_x_sce_sum_vec_dedx_assumes(dedx_assumes.size(), 0.0);
-  
+
   for(int i = start_index; i <= end_index; i++){
 
     dQdx_sum += dqdx[i];

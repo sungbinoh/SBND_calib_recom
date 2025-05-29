@@ -7,9 +7,11 @@
 #include "mylib.h"
 #include "Math/Vector3D.h"
 #include "BetheBloch.h"
+#include "SCECorr.h"
 
 bool isdata = false;
 BetheBloch *muon_BB = new BetheBloch(13);
+SCECorr *sce_corr_mc = new SCECorr(false);
 
 double dqdx_scale_correction_angle(double theta){
 

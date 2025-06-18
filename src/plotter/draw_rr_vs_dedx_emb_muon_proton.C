@@ -86,7 +86,7 @@ void draw_rr_vs_dedx_each_angle(TString filename, TString suffix, TString angle_
   template_h -> GetYaxis() -> SetTitleSize(0.045);
   template_h -> GetYaxis() -> SetLabelSize(0.035);
   template_h -> GetZaxis() -> SetRangeUser(0., z_max * 1.1);
-  template_h -> GetZaxis() -> SetTitle("Entries");
+  template_h -> GetZaxis() -> SetTitle("Hits");
   template_h -> GetZaxis() -> SetTitleSize(0.045);
   template_h -> GetZaxis() -> SetLabelSize(0.035);
   template_h -> Draw("colz");
@@ -181,6 +181,8 @@ void draw_rr_vs_dedx_each_angle(TString filename, TString suffix, TString angle_
   if(angle_bin != ""){
     particle_label_str = "Cathode-Crossing Stopping Tracks,#color[0]{a}#phi(E) = " + angle_str + "#circ";
   }
+
+  gPad->RedrawAxis();
   
   TLatex latex_SBND, latex_method, latex_plane;
   latex_SBND.SetNDC();

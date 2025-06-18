@@ -16,7 +16,7 @@ SCECorr *sce_corr_mc = new SCECorr(false);
 bool isdata = false;
 
 const double y_min = -200, y_max = 200, z_min = 0, z_max = 500;
-const double pixel_size = 5;
+const double pixel_size = 1;
 const int y_bins = (y_max - y_min) / pixel_size;
 const int z_bins = (z_max - z_min) / pixel_size;
 
@@ -120,6 +120,9 @@ bool evt_sel(const TTreeReaderArray<float> &sp_x, const TTreeReaderArray<float> 
   unsigned N_reco_hits = rr.GetSize();
   if(N_reco_hits < 3) return out;
 
+  double this_reco_trk_len = rr[N_reco_hits - 1];
+  if(this_reco_trk_len < 60.) return out;
+  
   double first_x = -999.;
   double first_y = -999.;
   double first_z = -999.;
@@ -182,6 +185,8 @@ void get_cos_vals(const TTreeReaderArray<float> &sp_x, const TTreeReaderArray<fl
       break;
     }
   }
+
+  //cout << "[get_cos_vals] N_reco_hits: " << N_reco_hits << endl;
   
   ROOT::Math::XYZVector track_vec(last_x - first_x, last_y - first_y, last_z - first_z);
   double cos_xy = track_vec.X() / (sqrt(pow(track_vec.X(), 2.) + pow(track_vec.Y(), 2.)));
@@ -192,6 +197,9 @@ void get_cos_vals(const TTreeReaderArray<float> &sp_x, const TTreeReaderArray<fl
   double cos_plus_zprimex = track_vec.X() / (sqrt(pow(track_vec.X(), 2.) + pow(zprime_plus, 2.)));
   double cos_minus_zprimex = track_vec.X() / (sqrt(pow(track_vec.X(), 2.) + pow(zprime_minus, 2.)));
 
+  //cout << "[get_cos_vals] track_vec.X(): " << track_vec.X() << ", track_vec.Y(): " << track_vec.Y() << ", track_vec.Z(): " << track_vec.Z() << endl;
+  //cout << "[get_cos_vals] cos_yz: " << cos_yz << ", cos_zx: " << cos_zx << ", cos_plus_zprimex: " << cos_plus_zprimex << ", cos_minus_zprimex: " << cos_minus_zprimex << endl;
+  
   // == return four cos vals: cosyz, coszx, coszx+, coszx-
   cos_vals[0] = cos_yz;
   cos_vals[1] =	cos_zx;
@@ -372,9 +380,10 @@ void run_YZ_unif(TString list_file, TString out_suffix, bool IsData = false) {
   std::vector<std::vector<std::vector<double>>> dqdx_sce_west_2(y_bins, std::vector<std::vector<double>>(z_bins)); // == x > 0
 
   while (myReader.Next()) {
+
     if(current_entry > N_run) break;
    
-    if(current_entry%100 == 0){
+    if(current_entry%1000 == 0){
       cout << current_entry << " / " << N_entries << endl;
     }
     current_entry++;
@@ -389,7 +398,7 @@ void run_YZ_unif(TString list_file, TString out_suffix, bool IsData = false) {
 
       // == 1st ind plane
       if(evt_sel(sp_x0, sp_y0, sp_z0, rr0, dqdx0)){
-
+	//cout << "fill 1st plane" << endl; // debug
 	// -- cos vals: cosyz, coszx, coszx+, coszx-
 	double cos_vals_0[4];
 	get_cos_vals(sp_x0, sp_y0, sp_z0, rr0, cos_vals_0);
@@ -447,6 +456,8 @@ void run_YZ_unif(TString list_file, TString out_suffix, bool IsData = false) {
 
       // == 2nd ind plane
       if(evt_sel(sp_x1, sp_y1, sp_z1, rr1, dqdx1)){
+	//cout << "fill 2nd plane" << endl; // debug
+
 	// -- cos vals: cosyz, coszx, coszx+, coszx-  
         double cos_vals_1[4];
         get_cos_vals(sp_x1, sp_y1, sp_z1, rr1, cos_vals_1);
@@ -504,13 +515,18 @@ void run_YZ_unif(TString list_file, TString out_suffix, bool IsData = false) {
       
       // == collection plane
       if(evt_sel(sp_x2, sp_y2, sp_z2, rr2, dqdx2)){
+	//cout << "fill coll plane" << endl; // debug
+
 	// -- cos vals: cosyz, coszx, coszx+, coszx-                                           
         double cos_vals_2[4];
         get_cos_vals(sp_x2, sp_y2, sp_z2, rr2, cos_vals_2);
 
+	//cout << "collected cos_vals" << endl; // debug
+	
         for (size_t i = 0; i < sp_x2.GetSize(); ++i) {
 	  if(rr2[i] < 0.) continue;
 
+	  //cout << "in sp_x2 loop at i = " << i << endl; // debug
 	  int y_index = (sp_y2[i] - y_min) / pixel_size;
           int z_index = (sp_z2[i] - z_min) / pixel_size;
 
@@ -523,6 +539,8 @@ void run_YZ_unif(TString list_file, TString out_suffix, bool IsData = false) {
           double dqdx_sce_corr = dqdx2[i] * pitch_sce_uncorr / pitch_sce_corr;
 
 	  if(sp_x2[i] < 0){
+	    //cout << "filling east" << endl; // debug
+
 	    int cos_x_index = (cos_vals_2[1] - cos_min) / cos_size;
             int cos_y_index = (cos_vals_2[0] - cos_min) / cos_size;
             cos_east_2[cos_x_index][cos_y_index].push_back(dqdx2[i]);
@@ -540,9 +558,14 @@ void run_YZ_unif(TString list_file, TString out_suffix, bool IsData = false) {
             }
 	  }
 	  else{
+	    //cout << "filling west" << endl; // debug
 	    int cos_x_index = (cos_vals_2[1] - cos_min) / cos_size;
             int cos_y_index = (cos_vals_2[0] - cos_min) / cos_size;
+	    //cout << "collected cos_x_index: " << cos_x_index << ", cos_y_index: " << cos_y_index << " from cos_vals_2[1]: " << cos_vals_2[1] << ", cos_vals_2[0]:" << cos_vals_2[0] << endl;
             cos_west_2[cos_x_index][cos_y_index].push_back(dqdx2[i]);
+
+	    //cout << "pushed back cos_west_2[cos_x_index][cos_y_index]" << endl;
+
 	    FillHist("plane_2_cos_zx_vs_dqdx_west", cos_vals_2[1], dqdx2[i], 1., 100., -1., 1., 3000., 0., 3000.);
 
 	    if(fabs(cos_vals_2[1]) < 0.75){// && !InVeto_region_westTPC_C(sp_y2[i], sp_z2[i])){
@@ -561,6 +584,8 @@ void run_YZ_unif(TString list_file, TString out_suffix, bool IsData = false) {
     }
   }
 
+  //cout << "fill meddqdx" << endl; // debug
+  
   // == median dqdx for angles
   fill_meddqdx_cos(cos_east_0, "cos_meddqdx_plane0_east_zx_plus");
   fill_meddqdx_cos(cos_west_0, "cos_meddqdx_plane0_west_zx_minus");

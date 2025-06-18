@@ -38,6 +38,9 @@ bool evt_sel(const TTreeReaderArray<float> &sp_x, const TTreeReaderArray<float> 
   unsigned N_reco_hits = rr.GetSize();
   if(N_reco_hits < 3) return out;
 
+  double this_reco_trk_len = rr[N_reco_hits - 1];
+  if(this_reco_trk_len < 60.) return out;
+  
   double first_x = -999.;
   double first_y = -999.;
   double first_z = -999.;
@@ -448,63 +451,11 @@ void run_lifetime_loop(TString list_file, TString out_suffix, bool IsData = fals
         // -- cos vals: cosyz, coszx, coszx+, coszx-
         double cos_vals_2[4];
         get_cos_vals(sp_x2, sp_y2, sp_z2, rr2, cos_vals_2);
-        fill_lifetime_hists(10, 2, sp_x2, sp_y2, sp_z2, dirx2, diry2, dirz2, wire2, dqdx2, time2, *trk_t0);
+
+	if(fabs(cos_vals_2[1]) < 0.75){
+	  fill_lifetime_hists(10, 2, sp_x2, sp_y2, sp_z2, dirx2, diry2, dirz2, wire2, dqdx2, time2, *trk_t0);
+	}
       }
-      
-      /*
-      // == No angular cut
-      for (unsigned i = 0; i < dqdx.GetSize(); i++) {
-	if(rr[i] < 0.) continue;
-	
-	FillHist("x_vs_y_acx", first_x, first_y, 1., 5000., -250., 250., 5000., -250., 250.);
-	FillHist("x_vs_y_acx", last_x, last_y, 1., 5000., -250., 250., 5000., -250., 250.);
-	
-	FillHist("x_vs_z_acx", first_x, first_z, 1., 5000., -250., 250., 5000., -50., 550.);
-	FillHist("x_vs_z_acx", last_x, last_z, 1., 5000., -250., 250., 5000., -50., 550.);
-	
-	FillHist("x_vs_y_trk_len", sp_x[i], sp_y[i], 1., 500., -250., 250., 500., -250., 250.);
-        FillHist("x_vs_z_trk_len", sp_x[i], sp_z[i], 1., 500., -250., 250., 600., -50., 550.);
-	
-	//cout << i << ", time : " << time[i] << ", sp_x : " << sp_x[i] << endl;
-	double t_drift_time = time[i] * 5.0e-4 - t_min;
-        double t_drift_space = (200. - fabs(sp_x[i])) / v_drift;
-	FillHist("sp_x_vs_dqdx_trk_len", sp_x[i], dqdx[i], 1., 500., -250., 250., 3000., 0., 3000.);
-	FillHist("t_t0_vs_dqdx_trk_len", time[i], dqdx[i], 1., 3000., 0., 3000., 3000., 0., 3000.);
-	FillHist("t_drift_time_vs_dqdx_trk_len", t_drift_time, dqdx[i], 1., 150., 0., 1.5, 3000., 0., 3000.);
-        FillHist("t_drift_space_vs_dqdx_trk_len", t_drift_space, dqdx[i], 1., 150., 0., 1.5, 3000., 0., 3000.);
-
-	double this_lifetime_corr = Lifetime_Correction(sp_x[i], 12.3);
-	double corrected_dqdx = dqdx[i] * this_lifetime_corr;
-	//cout << i << ", x : " << sp_x[i] << ", this_lifetime_corr : " << this_lifetime_corr << ", dqdx[i] : " << dqdx[i] << ", corrected_dqdx : " << corrected_dqdx << endl;
-	FillHist("sp_x_vs_corr_dqdx_trk_len", sp_x[i], corrected_dqdx, 1., 500., -250., 250., 3000., 0., 3000.);
-	FillHist("t_drift_time_vs_dqdx_corr_trk_len", t_drift_time, corrected_dqdx, 1., 150., 0., 1.5, 3000., 0., 3000.);
-	FillHist("t_drift_space_vs_dqdx_corr_trk_len", t_drift_space, corrected_dqdx, 1.,150., 0., 1.5, 3000., 0., 3000.);
-
-	FillHist("cos_xy_vs_dqdx_trk_len", cos_xy, dqdx[i], 1., 220., -1.1, 1.1, 3000., 0., 3000.);
-	FillHist("cos_yz_vs_dqdx_trk_len", cos_yz, dqdx[i], 1., 220., -1.1, 1.1, 3000., 0., 3000.);
-	FillHist("cos_zx_vs_dqdx_trk_len", cos_zx, dqdx[i], 1., 220., -1.1, 1.1, 3000., 0., 3000.);
-      }
-
-      // == With angular and passing cathode cut
-      if(fabs(cos_zx) > 0.75 || !passing_cathode) continue;
-
-      for(unsigned i = 0; i < dqdx.GetSize(); i++) {
-	if(rr[i] < 0.) continue;
-
-	FillHist("x_vs_y_angle_passing_cathode", sp_x[i], sp_y[i], 1., 500., -250., 250., 500., -250., 250.);
-	FillHist("x_vs_z_angle_passing_cathode", sp_x[i], sp_z[i], 1., 500., -250., 250., 600., -50., 550.);
-
-	double this_lifetime_corr = Lifetime_Correction(sp_x[i], 12.3);
-        double corrected_dqdx = dqdx[i] * this_lifetime_corr;
-
-	double t_drift_time = time[i] * 5.0e-4 - t_min;
-	double t_drift_space = (200. - fabs(sp_x[i])) / v_drift;
-	FillHist("t_drift_time_vs_dqdx_angle_passing_cathode", t_drift_time, dqdx[i], 1., 150., 0., 1.5, 3000., 0., 3000.);
-	FillHist("t_drift_space_vs_dqdx_angle_passing_cathode", t_drift_space, dqdx[i], 1., 150., 0., 1.5, 3000., 0., 3000.);
-	FillHist("t_drift_time_vs_dqdx_corr_angle_passing_cathode", t_drift_time, corrected_dqdx, 1., 150., 0., 1.5, 3000., 0., 3000.);
-        FillHist("t_drift_space_vs_dqdx_corr_angle_passing_cathode", t_drift_space, corrected_dqdx, 1., 150., 0., 1.5, 3000., 0., 3000.);
-      }
-      */
     }
   }
 

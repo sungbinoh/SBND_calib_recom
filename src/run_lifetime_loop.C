@@ -360,6 +360,7 @@ void run_lifetime_loop(TString list_file, TString out_suffix, bool IsData = fals
 
   TTreeReaderValue<int> selected(myReader, "trk.selected");
   TTreeReaderValue<Float_t> trk_t0(myReader, "trk.t0");
+  //TTreeReaderValue<Float_t> trk_t0(myReader, "trk.t0PFP");
   TTreeReaderArray<float> dqdx0(myReader, "trk.hits0.dqdx"); // hits on plane 0 (Induction)
   TTreeReaderArray<float> dqdx1(myReader, "trk.hits1.dqdx"); // hits on plane 1 (Induction)
   TTreeReaderArray<float> dqdx2(myReader, "trk.hits2.dqdx"); // hits on plane 2 (Collection)

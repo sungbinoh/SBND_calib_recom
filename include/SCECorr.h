@@ -71,6 +71,7 @@ void SCECorr::ReadHistograms(){
   TString datapath = getenv("SBND_DATA_PATH");
   TString sbnddata_v = getenv("SBNDDATA_VERSION");
   datapath = datapath + sbnddata_v + "/SCEoffsets/";
+  cout << "[SCECorr::ReadHistograms] datapath: " << datapath << endl;
   TDirectory* origDir = gDirectory;
 
   // == Refering

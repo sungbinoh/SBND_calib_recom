@@ -16,7 +16,7 @@ SCECorr *sce_corr_mc = new SCECorr(false);
 bool isdata = false;
 
 const double y_min = -200, y_max = 200, z_min = 0, z_max = 500;
-const double pixel_size = 25;
+const double pixel_size = 1;
 const int y_bins = (y_max - y_min) / pixel_size;
 const int z_bins = (z_max - z_min) / pixel_size;
 
@@ -254,17 +254,26 @@ void fill_meddqdx_yz(const std::vector<std::vector<std::vector<double>>> & dqdx,
   }
 }
 
-void run_YZ_unif(TString list_file, TString out_suffix, bool IsData = false) {
+void run_YZ_unif_valid(TString list_file, TString out_suffix, bool IsData = false) {
 
   sce_corr_mc -> ReadHistograms();
   isdata = IsData;
+
+  /////////////////////////////////
+  // == Open YZ-unif corr hists
+  /////////////////////////////////
+  TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
+  TString YZ_unif_file = "output_YZ_unif_2025A_SpringDev_MC_bnbcosmics_sce_v01_28_00.root";
+  if(isdata) YZ_unif_file = "output_YZ_unif_2025_goldrun_2025a_dev_data_sce_v01_30_00.root";
+  TFile *f_yz_unif = new TFile(output_rootfile_dir + "/" + YZ_unif_file);
+  
   
   /////////////////////////////////
   // == Define histograms
   /////////////////////////////////
   // == Histograms for overal events
   TH1F *hist_selected = new TH1F("selected", "selected", 3., -0.5, 2.5);
-
+  
   /////////////////////////////////
   // == Call Trees
   /////////////////////////////////
@@ -381,7 +390,7 @@ void run_YZ_unif(TString list_file, TString out_suffix, bool IsData = false) {
 
   while (myReader.Next()) {
 
-    if(current_entry > N_run) break;
+    //if(current_entry > N_run) break;
    
     if(current_entry%1000 == 0){
       cout << current_entry << " / " << N_entries << endl;
@@ -608,7 +617,6 @@ void run_YZ_unif(TString list_file, TString out_suffix, bool IsData = false) {
   fill_meddqdx_yz(dqdx_sce_west_1, "yz_plane1_west_sce");
   fill_meddqdx_yz(dqdx_sce_west_2, "yz_plane2_west_sce");
 
-  TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
   TString output_file_name = output_rootfile_dir + "/output_YZ_unif_" + out_suffix + ".root";
   out_rootfile = new TFile(output_file_name, "RECREATE");
   out_rootfile -> cd();

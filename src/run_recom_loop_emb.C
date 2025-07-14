@@ -12,6 +12,7 @@
 bool isdata = false;
 BetheBloch *muon_BB = new BetheBloch(13);
 SCECorr *sce_corr_mc = new SCECorr(false);
+double lifetime = 100.; // mc default
 
 double dqdx_scale_correction_angle(double theta){
 
@@ -105,7 +106,10 @@ void Fill_hit_plots(TString suffix, const TTreeReaderArray<float>& rr, const TTr
   }
 }
 
-void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr, const TTreeReaderArray<float>& dqdx, const TTreeReaderArray<float>& sp_x, const TTreeReaderArray<float>& sp_z, const TTreeReaderArray<float>& pitch, double last_x, double cos_plus_zprimex, double cos_minus_zprimex, double theta_trk_x, TString theta_trk_x_str, bool do_ind_ang_cut = false){
+void Fill_corrected_dqdx_plots(TString suffix, int plane, const TTreeReaderArray<float>& rr, const TTreeReaderArray<float>& dqdx,
+			       const TTreeReaderArray<float>& sp_x, const TTreeReaderArray<float>& sp_y, const TTreeReaderArray<float>& sp_z,
+			       const TTreeReaderArray<float> &dirx, const TTreeReaderArray<float> &diry, const TTreeReaderArray<float> &dirz,
+			       const TTreeReaderArray<float>& pitch, double last_x, double cos_plus_zprimex, double cos_minus_zprimex, double theta_trk_x, TString theta_trk_x_str, bool do_ind_ang_cut = false){
   // == Fill plots for recombination fits
   if(dqdx.GetSize() < 1) return;
   for (unsigned i = 1; i < dqdx.GetSize() - 1; i++) { // == Not using first and last hits of a track
@@ -121,22 +125,41 @@ void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr
       }
     }
 
-    double this_lifetime_corr = Lifetime_Correction(sp_x[i], 100.0);
-    if(isdata) this_lifetime_corr = 1.; // == FIXME, for data, do not apply lifetime correction. Should be updated in future to use different lifetime values for MC and data
-    double corrected_dqdx = dqdx[i] * this_lifetime_corr;
-    double this_dqdx_bias_corr = dqdx_scale_correction_angle(theta_trk_x);
-    this_dqdx_bias_corr = 1.; // == no correction
-    corrected_dqdx *= this_dqdx_bias_corr;
-    
-    FillHist("rr_vs_corr_dqdx_" + suffix, rr[i], corrected_dqdx, 1., 300., 0., 300., 5000., 0., 5000.);
-    FillHist("rr_vs_pitch_" + suffix, rr[i], pitch[i], 1., 300., 0., 300., 200., 0., 2.);
-    FillHist("pitch_" + suffix, pitch[i], 1., 200., 0., 2.);
-    FillHist("pitch_x_vs_corr_dqdx_" + suffix, pitch[i], corrected_dqdx, 1., 200., 0., 2., 3000., 0., 3000.);
-    if(i == 0) FillHist("last_x_" + suffix, last_x, 1., 500., -250., 250.);
-
+    // cut bad hits
     if(pitch[i] > 1.) continue;
     if(rr[i] < 0.) continue;
+
+    //cout << "[Fill_corrected_dqdx_plots] " << i << ", running" << endl;
+
+    // sce corr
+    //cout << "[Fill_corrected_dqdx_plots] making sp_sce_uncorr" << endl;
+    XYZVector sp_sce_uncorr(sp_x[i], sp_y[i], sp_z[i]);
+    //cout << "[Fill_corrected_dqdx_plots] making sp_sce_corr" << endl;
+    XYZVector sp_sce_corr = sce_corr_mc -> WireToTrajectoryPosition(sp_sce_uncorr);
+    double pitch_sce_uncorr = sce_corr_mc -> meas_pitch(sp_x[i], sp_y[i], sp_z[i], dirx[i], diry[i], dirz[i], plane, false);
+    double pitch_sce_corr = sce_corr_mc -> meas_pitch(sp_x[i], sp_y[i], sp_z[i], dirx[i], diry[i], dirz[i], plane, true);
+    double dqdx_sce_corr = dqdx[i] * pitch_sce_uncorr / pitch_sce_corr;
+
+    // e-lifetime corr
+    double this_lifetime_corr = Lifetime_Correction(sp_x[i], lifetime);
+    double this_lifetime_corr_east = Lifetime_Correction(sp_x[i], 44.5);
+    double this_lifetime_corr_west = Lifetime_Correction(sp_x[i], 33.8);
+    //if(isdata) this_lifetime_corr = Lifetime_Correction(sp_x[i], 35.0); // == FIXME, for data, do not apply lifetime correction. Should be updated in future to use different lifetime values for MC and data
+
+    double dqdx_lifetime_corr = dqdx_sce_corr * this_lifetime_corr;
+
+    // trk angle dqdx reco bias corr: NOT APPLIED
+    double this_dqdx_bias_corr = dqdx_scale_correction_angle(theta_trk_x);
+    this_dqdx_bias_corr = 1.; // == no correction
+    double dqdx_bias_corr = dqdx_lifetime_corr * this_dqdx_bias_corr;
     
+    FillHist("rr_vs_lifetime_corr_dqdx_" + suffix, rr[i], dqdx_lifetime_corr, 1., 300., 0., 300., 5000., 0., 5000.);
+    FillHist("rr_vs_pitch_" + suffix, rr[i], pitch[i], 1., 300., 0., 300., 200., 0., 2.);
+    FillHist("pitch_" + suffix, pitch[i], 1., 200., 0., 2.);
+    FillHist("pitch_x_vs_lifetime_corr_dqdx_" + suffix, pitch[i], dqdx_lifetime_corr, 1., 200., 0., 2., 3000., 0., 3000.);
+
+    if(i == 0) FillHist("last_x_" + suffix, last_x, 1., 500., -250., 250.);
+
     double this_KE= muon_BB -> KEFromRangeSpline(rr[i]); // == from rr
 
     double gamma = (this_KE/mass_muon)+1.0;
@@ -149,19 +172,30 @@ void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr
     TF1 * this_dEdx_PDF = muon_BB -> dEdx_PDF(this_KE, pitch[i]);
     double this_dEdx_MPV = this_dEdx_PDF -> GetMaximumX();
     delete this_dEdx_PDF;
-    
-    FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix, this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
-    FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_phi" + theta_trk_x_str, this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
-    //cout << "[Fill_corrected_dqdx_plots] " << i << ", rr : " << rr[i] << ", KE : " << muon_sp_range_to_KE -> Eval(rr[i]) << ", this_kappa : " << this_kappa << ", this_dEdx_MPV : " << this_dEdx_MPV << endl;
+
+    FillHist("dEdx_MPV_vs_uncorr_dqdx_" + suffix, this_dEdx_MPV, dqdx[i], 1., 3000., 0., 30., 3000., 0., 3000.);
+    FillHist("dEdx_MPV_vs_uncorr_dqdx_" + suffix + "_phi" + theta_trk_x_str, this_dEdx_MPV, dqdx[i], 1., 3000., 0., 30., 3000., 0., 3000.);
+
+    FillHist("dEdx_MPV_vs_sce_corr_dqdx_" + suffix, this_dEdx_MPV, dqdx_sce_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
+    FillHist("dEdx_MPV_vs_sce_corr_dqdx_" + suffix + "_phi" + theta_trk_x_str, this_dEdx_MPV, dqdx_sce_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
+
+    FillHist("dEdx_MPV_vs_lifetime_corr_dqdx_" + suffix, this_dEdx_MPV, dqdx_lifetime_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
+    FillHist("dEdx_MPV_vs_lifetime_corr_dqdx_" + suffix + "_phi" + theta_trk_x_str, this_dEdx_MPV, dqdx_lifetime_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
 
     // == Divide into NE, NW, SE and SW
     if(sp_x[i] < 0.){
-      if(sp_z[i] > 250.) FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_NE", this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
-      else FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_SE", this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
+      FillHist("dEdx_MPV_vs_east_only_lifetime_corr_dqdx_" + suffix, this_dEdx_MPV, dqdx_sce_corr * this_lifetime_corr_east, 1., 3000., 0., 30., 3000., 0., 3000.);
+      FillHist("dEdx_MPV_vs_east_only_lifetime_corr_dqdx_" + suffix + "_phi" + theta_trk_x_str, this_dEdx_MPV, dqdx_sce_corr * this_lifetime_corr_east, 1., 3000., 0., 30., 3000., 0., 3000.);
+
+      if(sp_z[i] > 250.) FillHist("dEdx_MPV_vs_lifetime_corr_dqdx_" + suffix + "_NE", this_dEdx_MPV, dqdx_lifetime_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
+      else FillHist("dEdx_MPV_vs_lifetime_corr_dqdx_" + suffix + "_SE", this_dEdx_MPV, dqdx_lifetime_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
     }
     else{
-      if(sp_z[i] > 250.) FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_NW", this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
-      else FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_SW", this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
+      FillHist("dEdx_MPV_vs_west_only_lifetime_corr_dqdx_" + suffix, this_dEdx_MPV, dqdx_sce_corr * this_lifetime_corr_west, 1., 3000., 0., 30., 3000., 0., 3000.);
+      FillHist("dEdx_MPV_vs_west_only_lifetime_corr_dqdx_" + suffix + "_phi" + theta_trk_x_str, this_dEdx_MPV, dqdx_sce_corr * this_lifetime_corr_west, 1., 3000., 0., 30., 3000., 0., 3000.);
+
+      if(sp_z[i] > 250.) FillHist("dEdx_MPV_vs_lifetime_corr_dqdx_" + suffix + "_NW", this_dEdx_MPV, dqdx_lifetime_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
+      else FillHist("dEdx_MPV_vs_lifetime_corr_dqdx_" + suffix + "_SW", this_dEdx_MPV, dqdx_lifetime_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
     }
   }
 }
@@ -214,7 +248,11 @@ void Fill_charge_reco_res_plots(TString suffix, const TTreeReaderArray<float>& d
 
 void run_recom_loop_emb(TString list_file, TString out_suffix, bool IsData = false) {
 
+  sce_corr_mc -> ReadHistograms();
   isdata = IsData;
+  if(isdata) lifetime = 35.;
+  cout << "lifetime: " << lifetime << endl;
+
   
   /////////////////////////////////
   // == Define histograms
@@ -282,6 +320,15 @@ void run_recom_loop_emb(TString list_file, TString out_suffix, bool IsData = fal
   TTreeReaderArray<float> dir_x(myReader, "trk.dir.x"); 
   TTreeReaderArray<float> dir_y(myReader, "trk.dir.y");
   TTreeReaderArray<float> dir_z(myReader, "trk.dir.z");
+  TTreeReaderArray<float> dirx0(myReader, "trk.hits0.dir.x");
+  TTreeReaderArray<float> diry0(myReader, "trk.hits0.dir.y");
+  TTreeReaderArray<float> dirz0(myReader, "trk.hits0.dir.z");
+  TTreeReaderArray<float> dirx1(myReader, "trk.hits1.dir.x");
+  TTreeReaderArray<float> diry1(myReader, "trk.hits1.dir.y");
+  TTreeReaderArray<float> dirz1(myReader, "trk.hits1.dir.z");
+  TTreeReaderArray<float> dirx2(myReader, "trk.hits2.dir.x");
+  TTreeReaderArray<float> diry2(myReader, "trk.hits2.dir.y");
+  TTreeReaderArray<float> dirz2(myReader, "trk.hits2.dir.z");
 
   TTreeReaderArray<float> true_start_x(myReader, "trk.truth.p.start.x");
   TTreeReaderArray<float> true_start_y(myReader, "trk.truth.p.start.y");
@@ -429,12 +476,12 @@ void run_recom_loop_emb(TString list_file, TString out_suffix, bool IsData = fal
       */
 
       // == These are the main plots
-      Fill_corrected_dqdx_plots("plane0_trklen_60cm_passing_cathode_coszx", rr0, dqdx0, sp_x0, sp_z0, pitch0, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x, theta_trk_x_str, true);
-      Fill_corrected_dqdx_plots("plane1_trklen_60cm_passing_cathode_coszx", rr1, dqdx1, sp_x1, sp_z1, pitch1, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x, theta_trk_x_str, true);
+      Fill_corrected_dqdx_plots("plane0_trklen_60cm_passing_cathode_coszx", 0, rr0, dqdx0, sp_x0, sp_y0, sp_z0, dirx0, diry0, dirz0, pitch0, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x, theta_trk_x_str, true);
+      Fill_corrected_dqdx_plots("plane1_trklen_60cm_passing_cathode_coszx", 1, rr1, dqdx1, sp_x1, sp_y1, sp_z1, dirx1, diry1, dirz1, pitch1, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x, theta_trk_x_str, true);
       if(fabs(cos_zx) < 0.75){
 	Fill_track_plots("trklen_60cm_passing_cathode_coszx", dist_start, dist_end, rr2, dqdx2);
 	FillHist("theta_trk_x_str_trklen_60cm_passing_cathode_coszx", theta_trk_x, 1., 100., 0., 100.);
-        Fill_corrected_dqdx_plots("plane2_trklen_60cm_passing_cathode_coszx", rr2, dqdx2, sp_x2, sp_z2, pitch2, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x, theta_trk_x_str, true);
+        Fill_corrected_dqdx_plots("plane2_trklen_60cm_passing_cathode_coszx", 2, rr2, dqdx2, sp_x2, sp_y2, sp_z2, dirx2, diry2, dirz2, pitch2, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x, theta_trk_x_str, true);
 	Fill_true_hit_plots("plane2_trklen_60cm_passing_cathode_coszx", true_hit_rr, true_hit_nelec, true_hit_pitch);
 	Fill_charge_reco_res_plots("plane2_trklen_60cm_passing_cathode_coszx", dq2, width2, dele2, rr2, theta_zx_str);
       }

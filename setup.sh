@@ -44,8 +44,20 @@ then
     source /cvmfs/larsoft.opensciencegrid.org/spack-packages/setup-env.sh
     export SAMPLE_PATH=$DATA_PATH/sample_list/sbndgpvm/
     export SBND_DATA_PATH=/cvmfs/sbnd.opensciencegrid.org/products/sbnd/sbnd_data/
+    export SBNDDATA_VERSION=v01_28_00
+    #export SBNDDATA_VERSION=v01_30_00
+fi
+
+if [[ `hostname` == *"jupyter"* ]]
+then
+    source /cvmfs/larsoft.opensciencegrid.org/spack-packages/setup-env.sh
+    export SAMPLE_PATH=$DATA_PATH/sample_list/sbndgpvm/
+    export SBND_DATA_PATH=/cvmfs/sbnd.opensciencegrid.org/products/sbnd/sbnd_data/
     #export SBNDDATA_VERSION=v01_28_00
     export SBNDDATA_VERSION=v01_30_00
+
+    export SBND_YZCORR_PATH=/exp/sbnd/data/users/sungbino/sbnd_corr/yzcorr/
+    export SBND_YZCORR_VERSION=202506
 fi
 
 if [[ `hostname` == *"dune-gpu01"* ]]

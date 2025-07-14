@@ -469,4 +469,6 @@ void run_lifetime_loop(TString list_file, TString out_suffix, bool IsData = fals
 
   WriteHist();
   out_rootfile -> Close();
+
+  cout << "[run_lifetime_loop] finished" << endl;
 }

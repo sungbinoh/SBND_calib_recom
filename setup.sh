@@ -37,15 +37,20 @@ else
   echo "I do not automatically set up ROOT. If ROOT is already setup, it shoould be okay"
 fi
 
+#### -- setup grid output
+if [[ $(hostname) == *sbnd* || $(hostname) == *jupyter* ]]; then
+    export SBNDCALIB_GRID_OUT_DIR="/pnfs/sbnd/scratch/users/$USER/sbnd_calib_out"
+    mkdir -p $SBNDCALIB_GRID_OUT_DIR
+fi
+
 #### -- Calib ntuple list dir
 export SAMPLE_PATH=$DATA_PATH/sample_list/sungbinosx/
-if [[ `hostname` == *"sbnd"* ]]
-then
+if [[ `hostname` == *"sbnd"* || `hostname` == *"$USER"* ]]; then
     source /cvmfs/larsoft.opensciencegrid.org/spack-packages/setup-env.sh
     export SAMPLE_PATH=$DATA_PATH/sample_list/sbndgpvm/
     export SBND_DATA_PATH=/cvmfs/sbnd.opensciencegrid.org/products/sbnd/sbnd_data/
-    export SBNDDATA_VERSION=v01_28_00
-    #export SBNDDATA_VERSION=v01_30_00
+    #export SBNDDATA_VERSION=v01_28_00
+    export SBNDDATA_VERSION=v01_30_00
 fi
 
 if [[ `hostname` == *"jupyter"* ]]

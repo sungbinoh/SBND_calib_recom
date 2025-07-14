@@ -72,6 +72,7 @@ void AddFilesToChain(TString fileListPath, TChain* chain) {
 
   string fileName;
   while(getline(in,fileName)){
+    cout << "[AddFilesToChain] add : " << fileName.c_str() << endl;
     chain->Add(fileName.c_str());
   }
 }

@@ -359,6 +359,7 @@ void run_lifetime_loop(TString list_file, TString out_suffix, bool IsData = fals
   TTreeReaderValue<float> trklen(myReader, "trk.length");
 
   TTreeReaderValue<int> selected(myReader, "trk.selected");
+  TTreeReaderValue<int> whicht0(myReader, "trk.whicht0");
   //TTreeReaderValue<Float_t> trk_t0(myReader, "trk.t0");
   TTreeReaderValue<Float_t> trk_t0(myReader, "trk.t0PFP");
   TTreeReaderArray<float> dqdx0(myReader, "trk.hits0.dqdx"); // hits on plane 0 (Induction)
@@ -431,8 +432,8 @@ void run_lifetime_loop(TString list_file, TString out_suffix, bool IsData = fals
 
     hist_selected -> Fill(*selected);
 
-    // == Tracks selected as Anode+Cathode crossing
-    if (*selected == 1) {
+    // == Tracks selected as Anode+Cathode crossing and t0 is from TPC (not CRT)
+    if (*selected == 1 && *whicht0 == 0) {
       // == 1st ind plane
       if(evt_sel(sp_x0, sp_y0, sp_z0, rr0, dqdx0)){
 	// -- cos vals: cosyz, coszx, coszx+, coszx-

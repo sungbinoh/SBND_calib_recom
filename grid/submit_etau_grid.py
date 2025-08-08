@@ -71,6 +71,10 @@ def run_grid(inputfiles):
     os.system(cp_setup)
     os.system(cp_BashColorSets)
     os.system(cp_lifetime_loop)
+
+    yzunif_map_dir = os.environ['SBND_YZCORR_PATH']
+    cp_yzunif_map = "cp " + yzunif_map_dir + "/*.root " + MasterJobDir
+    os.system(cp_yzunif_map)
     
     os.chdir(MasterJobDir)
     tar_cmd = 'tar cf bin_dir.tar ./'

@@ -51,6 +51,8 @@ if [[ `hostname` == *"sbnd"* || `hostname` == *"$USER"* ]]; then
     export SBND_DATA_PATH=/cvmfs/sbnd.opensciencegrid.org/products/sbnd/sbnd_data/
     #export SBNDDATA_VERSION=v01_28_00
     export SBNDDATA_VERSION=v01_30_00
+
+    export SBND_YZCORR_PATH=/exp/sbnd/app/users/yadav/Calibration/sbndcode_v10_06_01/sbnd_data/v01_33_00/YZmaps/
 fi
 
 if [[ `hostname` == *"jupyter"* ]]

@@ -17,7 +17,7 @@ bool isdata = false;
 
 // == binnings for traj plots
 const double x_min = -200, x_max = 200., y_min = -200, y_max = 200, z_min = 0, z_max = 500;
-const double pixel_size = 0.1;
+const double pixel_size = 5.;
 const int x_bins = (x_max - x_min) / pixel_size;
 const int y_bins = (y_max - y_min) / pixel_size;
 const int z_bins = (z_max - z_min) / pixel_size;
@@ -54,6 +54,24 @@ TString get_y_str(double y){
   return out;
 }
 
+TString get_axis_range_str(double x, double spacing) {
+  // Bounds
+  double lower = std::floor(x / spacing) * spacing;
+  double upper = lower + spacing;
+
+  int ilower = static_cast<int>(lower);
+  int iupper = static_cast<int>(upper);
+
+  // Digit width (fast)
+  auto digits = [](int val){ return (val == 0) ? 1 : static_cast<int>(std::log10(std::abs(val))) + 1; };
+  int width = std::max({3, digits(ilower), digits(iupper)});
+
+  // Format
+  if (x >= 0)
+    return Form("p%0*dtop%0*d", width, ilower, width, iupper);
+  else
+    return Form("n%0*dton%0*d", width, std::abs(iupper), width, std::abs(ilower));
+}
 
 double zprime_60deg(double y, double z, int pm = 1){
   double cos_60deg = 0.5;
@@ -128,17 +146,18 @@ bool evt_sel(const TTreeReaderArray<float> &sp_x, const TTreeReaderArray<float> 
 
   // == aca
   bool is_ac = fabs(first_x) > 195. || fabs(last_x) > 195.;
-  if(!is_ac) return out;
+  bool is_throu = fabs(first_y) > 195. || fabs(last_y) > 195.;
+  if(!is_ac && !is_throu) return out;
   
   out = true;
   return out;
 }
 
-void make_traj_plot(int current_entry, int plane, const TTreeReaderArray<float> &sp_x, const TTreeReaderArray<float> &sp_y, const TTreeReaderArray<float> &sp_z,
-		    const TTreeReaderArray<float> &dir_x, const TTreeReaderArray<float> &dir_y, const TTreeReaderArray<float> &dir_z,
-		    const TTreeReaderArray<float> &rr, const TTreeReaderArray<float> &dqdx, const TTreeReaderArray<float> &q_integ,
-		    const TTreeReaderArray<float> &time
-		    ){
+void study_ca_crosser(int current_entry, int plane, const TTreeReaderArray<float> &sp_x, const TTreeReaderArray<float> &sp_y, const TTreeReaderArray<float> &sp_z,
+		      const TTreeReaderArray<float> &dir_x, const TTreeReaderArray<float> &dir_y, const TTreeReaderArray<float> &dir_z,
+		      const TTreeReaderArray<float> &rr, const TTreeReaderArray<float> &dqdx, const TTreeReaderArray<float> &q_integ,
+		      const TTreeReaderArray<float> &time
+		      ){
 
   TString plane_str = Form("%d", plane);
   unsigned N_reco_hits = sp_x.GetSize();
@@ -205,16 +224,16 @@ void make_traj_plot(int current_entry, int plane, const TTreeReaderArray<float> 
       }
       
       if(fabs(sp_x[i]) < 5.){
-	if(sp_x[i] < 0.) FillHist("aca_hit_zy_east_near_cathode_5cm_plane" + plane_str, sp_z[i], sp_y[i], 1., z_bins / 10, z_min, z_max, y_bins / 10, y_min, y_max);
-	if(sp_x[i] > 0.) FillHist("aca_hit_zy_west_near_cathode_5cm_plane" + plane_str, sp_z[i], sp_y[i], 1., z_bins / 10, z_min, z_max, y_bins / 10, y_min, y_max);
+	if(sp_x[i] < 0.) FillHist("aca_hit_zy_east_near_cathode_5cm_plane" + plane_str, sp_z[i], sp_y[i], 1., 500, z_min, z_max, 400, y_min, y_max);
+	if(sp_x[i] > 0.) FillHist("aca_hit_zy_west_near_cathode_5cm_plane" + plane_str, sp_z[i], sp_y[i], 1., 500, z_min, z_max, 400, y_min, y_max);
 
 	if(fabs(sp_x[i]) < 3.){
-	  if(sp_x[i] < 0.) FillHist("aca_hit_zy_east_near_cathode_3cm_plane" + plane_str, sp_z[i], sp_y[i], 1., z_bins / 10, z_min, z_max, y_bins / 10, y_min, y_max);
-	  if(sp_x[i] > 0.) FillHist("aca_hit_zy_west_near_cathode_3cm_plane" + plane_str, sp_z[i], sp_y[i], 1., z_bins / 10, z_min, z_max, y_bins / 10, y_min, y_max);
+	  if(sp_x[i] < 0.) FillHist("aca_hit_zy_east_near_cathode_3cm_plane" + plane_str, sp_z[i], sp_y[i], 1., 500, z_min, z_max, 400, y_min, y_max);
+	  if(sp_x[i] > 0.) FillHist("aca_hit_zy_west_near_cathode_3cm_plane" + plane_str, sp_z[i], sp_y[i], 1., 500, z_min, z_max, 400, y_min, y_max);
 
 	  if(fabs(sp_x[i]) < 1.){
-	    if(sp_x[i] < 0.) FillHist("aca_hit_zy_east_near_cathode_1cm_plane" + plane_str, sp_z[i], sp_y[i], 1., z_bins / 10, z_min, z_max, y_bins / 10, y_min, y_max);
-	    if(sp_x[i] > 0.) FillHist("aca_hit_zy_west_near_cathode_1cm_plane" + plane_str, sp_z[i], sp_y[i], 1., z_bins / 10, z_min, z_max, y_bins / 10, y_min, y_max);
+	    if(sp_x[i] < 0.) FillHist("aca_hit_zy_east_near_cathode_1cm_plane" + plane_str, sp_z[i], sp_y[i], 1., 500, z_min, z_max, 400, y_min, y_max);
+	    if(sp_x[i] > 0.) FillHist("aca_hit_zy_west_near_cathode_1cm_plane" + plane_str, sp_z[i], sp_y[i], 1., 500, z_min, z_max, 400, y_min, y_max);
 	  }
 	}
       }
@@ -223,16 +242,102 @@ void make_traj_plot(int current_entry, int plane, const TTreeReaderArray<float> 
 
   if(idx_largest_x != -1 && idx_near_cathod_west != -1 && sp_x[idx_largest_x] > 195.){
     TString this_y_str = get_y_str(sp_y[idx_near_cathod_west]);
-    FillHist("aca_hit_zx_west_near_anode_plane" + plane_str, sp_z[idx_near_cathod_west], sp_x[idx_largest_x], 1., z_bins / 40, z_min, z_max, 100., 190., 210.);
-    FillHist("aca_hit_zx_west_near_anode_plane" + plane_str + "_y" + this_y_str, sp_z[idx_near_cathod_west], sp_x[idx_largest_x], 1., z_bins / 40, z_min, z_max, 100., 190., 210.);
+    FillHist("aca_hit_zx_west_near_anode_plane" + plane_str, sp_z[idx_near_cathod_west], sp_x[idx_largest_x], 1., 125, z_min, z_max, 100., 190., 210.);
+    FillHist("aca_hit_zx_west_near_anode_plane" + plane_str + "_y" + this_y_str, sp_z[idx_near_cathod_west], sp_x[idx_largest_x], 1., 125, z_min, z_max, 100., 190., 210.);
     FillHist("aca_hit_zx_west_near_anode_plane" + plane_str + "_y" + this_y_str, sp_z[idx_near_cathod_west], sp_x[idx_largest_x], 1., 100, -100., 600., 500., -250., 250.);
 
   }
   if(idx_smallest_x != -1 && idx_near_cathod_east != -1 && sp_x[idx_smallest_x] < -195.){
     TString this_y_str = get_y_str(sp_y[idx_near_cathod_east]);
-    FillHist("aca_hit_zx_east_near_anode_plane" + plane_str, sp_z[idx_near_cathod_east], sp_x[idx_smallest_x], 1., z_bins / 40, z_min, z_max, 100., -210., -190.);
-    FillHist("aca_hit_zx_east_near_anode_plane" + plane_str + "_y" + this_y_str, sp_z[idx_near_cathod_east], sp_x[idx_smallest_x], 1., z_bins / 40, z_min, z_max, 100., -210., -190.);
+    FillHist("aca_hit_zx_east_near_anode_plane" + plane_str, sp_z[idx_near_cathod_east], sp_x[idx_smallest_x], 1., 125, z_min, z_max, 100., -210., -190.);
+    FillHist("aca_hit_zx_east_near_anode_plane" + plane_str + "_y" + this_y_str, sp_z[idx_near_cathod_east], sp_x[idx_smallest_x], 1., 125, z_min, z_max, 100., -210., -190.);
     FillHist("aca_hit_zx_east_near_anode_plane" + plane_str + "_y" + this_y_str, sp_z[idx_near_cathod_east], sp_x[idx_smallest_x], 1., 100, -100., 600., 500., -250., 250.);
+  }
+}
+
+void study_c_crosser(int current_entry, int plane, const TTreeReaderArray<float> &sp_x, const TTreeReaderArray<float> &sp_y, const TTreeReaderArray<float> &sp_z,
+		      const TTreeReaderArray<float> &dir_x, const TTreeReaderArray<float> &dir_y, const TTreeReaderArray<float> &dir_z,
+		      const TTreeReaderArray<float> &rr, const TTreeReaderArray<float> &dqdx, const TTreeReaderArray<float> &q_integ,
+		      const TTreeReaderArray<float> &time
+		      ){
+
+  TString plane_str = Form("%d", plane);
+  unsigned N_reco_hits = sp_x.GetSize();
+    
+  int idx_largest_x = -1;
+  int idx_smallest_x = -1;
+  double largest_x = -999.;
+  double smallest_x = 999.;
+
+  int idx_near_cathod_east = -1;
+  int idx_near_cathod_west = -1;
+  double min_abs_x_east = 999.;
+  double min_abs_x_west = 999.;
+  
+  for (unsigned i = 0; i < sp_x.GetSize(); i++) {
+    if(rr[i] > 0){
+      double this_sp_x = sp_x[i];
+      double this_sp_y = sp_y[i];
+      double this_sp_z = sp_z[i];
+      double this_dir_x = dir_x[i];
+      double this_dir_y	= dir_y[i];
+      double this_dir_z	= dir_z[i];
+      double this_rr = rr[i];
+      double this_dqdx = dqdx[i];
+      double this_q_integ = q_integ[i];
+
+      if(sp_x[i] > largest_x){
+	largest_x = sp_x[i];
+	idx_largest_x = i;
+      }
+      if(sp_x[i] < smallest_x){
+	smallest_x = sp_x[i];
+	idx_smallest_x = i;
+      }
+
+      if(sp_x[i] < 0.){
+	if(fabs(sp_x[i]) < min_abs_x_east){
+	  min_abs_x_east = fabs(sp_x[i]);
+	  idx_near_cathod_east = i;
+	}
+      }
+      if(sp_x[i] > 0.){
+        if(fabs(sp_x[i]) < min_abs_x_west){
+          min_abs_x_west = fabs(sp_x[i]);
+          idx_near_cathod_west = i;
+        }
+      }
+    }
+  }
+
+  // == select only tracks crossing cathde at Y < 100 cm
+  if(idx_near_cathod_west != -1){
+    if(sp_y[idx_near_cathod_west] < 100.){
+      for (unsigned i = 0; i < sp_x.GetSize(); i++) {
+	if(rr[i] > 0 && sp_x[i] > 0.){
+	  if(fabs(sp_x[i]) < 100. && sp_y[i] > 0.){
+	    TString x_str = get_axis_range_str(sp_x[i], pixel_size);
+	    TString y_str = get_axis_range_str(sp_y[i], pixel_size);
+	    TString z_str	= get_axis_range_str(sp_z[i], pixel_size);
+	    FillHist("dqdx_x_" + x_str + "_y_" + y_str + "_z_" + z_str, dqdx[i], 1., 4000., 0., 4000.);
+	  }
+	}
+      }
+    }
+  }
+  if(idx_near_cathod_east != -1){
+    if(sp_y[idx_near_cathod_east] < 100.){
+      for (unsigned i = 0; i < sp_x.GetSize(); i++) {
+	if(rr[i] > 0 && sp_x[i] < 0.){
+	  if(fabs(sp_x[i]) < 100. && sp_y[i] > 0.){
+	    TString x_str = get_axis_range_str(sp_x[i], pixel_size);
+	    TString y_str = get_axis_range_str(sp_y[i], pixel_size);
+	    TString z_str = get_axis_range_str(sp_z[i], pixel_size);
+	    FillHist("dqdx_x_" + x_str + "_y_" + y_str + "_z_" + z_str, dqdx[i], 1., 4000., 0., 4000.);
+	  }
+	}
+      }
+    }
   }
 }
 
@@ -337,7 +442,7 @@ void run_tpc_asym_study(TString list_file, TString out_suffix, bool IsData = fal
   double track_length_cut = 15.;
 
   // Loop over all entries of the TTree
-  //int N_run = 2000;
+  //int N_run = 10000;
   //int N_run = 100000;
    
   while (myReader.Next()) {
@@ -356,24 +461,27 @@ void run_tpc_asym_study(TString list_file, TString out_suffix, bool IsData = fal
 
     // == select TPC t0s
     if (*whicht0 == 0){
-      // == Tracks selected as cathode passing through going
+      // == Tracks selected as cathode - anode crossing
       if (*selected == 1) {
-	
-	//if(current_entry < N_run){
-	  // == 1st ind plane
-	  if(evt_sel(sp_x0, sp_y0, sp_z0, rr0, dqdx0)){
-	    make_traj_plot(current_entry, 0, sp_x0, sp_y0, sp_z0, dirx0, diry0, dirz0, rr0, dqdx0, qinteg0, time0);
-	  }
-	  // == 2nd ind plane
-	  if(evt_sel(sp_x1, sp_y1, sp_z1, rr1, dqdx1)){
-	    make_traj_plot(current_entry, 1, sp_x1, sp_y1, sp_z1, dirx1, diry1, dirz1, rr1, dqdx1, qinteg1, time1);
-	  }
-	  // == collection plane
-	  if(evt_sel(sp_x2, sp_y2, sp_z2, rr2, dqdx2)){
-	    make_traj_plot(current_entry, 2, sp_x2, sp_y2, sp_z2, dirx2, diry2, dirz2, rr2, dqdx2, qinteg2, time2);
-	  }
-	  //}
+	/*
+	if(evt_sel(sp_x0, sp_y0, sp_z0, rr0, dqdx0)){
+	  study_ca_crosser(current_entry, 0, sp_x0, sp_y0, sp_z0, dirx0, diry0, dirz0, rr0, dqdx0, qinteg0, time0);
+	}
+	if(evt_sel(sp_x1, sp_y1, sp_z1, rr1, dqdx1)){
+	  study_ca_crosser(current_entry, 1, sp_x1, sp_y1, sp_z1, dirx1, diry1, dirz1, rr1, dqdx1, qinteg1, time1);
+	}
+	*/
+	if(evt_sel(sp_x2, sp_y2, sp_z2, rr2, dqdx2)){
+	  //study_ca_crosser(current_entry, 2, sp_x2, sp_y2, sp_z2, dirx2, diry2, dirz2, rr2, dqdx2, qinteg2, time2);
+	}
       }
+      // == Tracks selected as cathode crosser
+      if(*selected == 2){
+	if(evt_sel(sp_x2, sp_y2, sp_z2, rr2, dqdx2)){
+          study_c_crosser(current_entry, 2, sp_x2, sp_y2, sp_z2, dirx2, diry2, dirz2, rr2, dqdx2, qinteg2, time2);
+	}
+      }
+      
     }
   }
   TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");

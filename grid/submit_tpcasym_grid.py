@@ -87,6 +87,7 @@ def run_grid(inputfiles):
 --tar_file_name "dropbox://$(pwd)/bin_dir.tar" \\
 --email-to sungbin.oh555@gmail.com \\
 -N %d \\
+--memory 6GB \\
 --disk 100GB \\
 --expected-lifetime 10h \\
 "file://$(pwd)/grid_executable_tpcasym.sh" \\

@@ -7,8 +7,10 @@
 #include "mylib.h"
 #include "SCECorr.h"
 #include "recom.h"
+#include "YZCorr.h"
 
 SCECorr *sce_corr_mc = new SCECorr(false);
+YZCorr *yz_corr = new YZCorr();
 recom *recom_fns = new recom();
 bool isdata = false;
 
@@ -158,8 +160,11 @@ void fill_lifetime_hists(int nGroupedWires, int plane, const TTreeReaderArray<fl
     double pitch_sce_uncorr = sce_corr_mc -> meas_pitch(sp_x[i], sp_y[i], sp_z[i], dirx[i], diry[i], dirz[i], plane, false);
     double pitch_sce_corr = sce_corr_mc -> meas_pitch(sp_x[i], sp_y[i], sp_z[i], dirx[i], diry[i], dirz[i], plane, true);
     double dqdx_sce_corr = dqdx[i] * pitch_sce_uncorr / pitch_sce_corr;
-
-    dQdx_sce_sum += dqdx_sce_corr;
+    double dqdx_yz_corr = dqdx_sce_corr * yz_corr -> GetYZCorr(sp_sce_corr, plane);
+    double dqdx_all_corr = dqdx_yz_corr;
+    //double dqdx_all_corr = dqdx_sce_corr;
+    
+    dQdx_sce_sum += dqdx_all_corr;
     x_sce_sum += sp_sce_corr.X();
 
     double sce_efield = sce_corr_mc -> GetEfield(sp_sce_corr);
@@ -172,12 +177,12 @@ void fill_lifetime_hists(int nGroupedWires, int plane, const TTreeReaderArray<fl
       double this_dedx = dedx_assumes.at(j);
       double mb_recom_fac_nom_field = recom_fns -> dedx2recomfactor_modbox(this_dedx, 0.5);
       double mb_recom_fac_sce_field = recom_fns -> dedx2recomfactor_modbox(this_dedx, sce_efield);
-      double mb_recom_fac_corr_dqdx = dqdx_sce_corr * mb_recom_fac_nom_field / mb_recom_fac_sce_field;
+      double mb_recom_fac_corr_dqdx = dqdx_all_corr * mb_recom_fac_nom_field / mb_recom_fac_sce_field;
       mb_dQdx_sum_vec_dedx_assumes.at(j) = mb_dQdx_sum_vec_dedx_assumes.at(j) + mb_recom_fac_corr_dqdx;
 
       double emb_recom_fac_nom_field = recom_fns -> dedx2recomfactor_emb(this_dedx, 0.5);
       double emb_recom_fac_sce_field = recom_fns -> dedx2recomfactor_emb(this_dedx, sce_efield);
-      double emb_recom_fac_corr_dqdx = dqdx_sce_corr * emb_recom_fac_nom_field / emb_recom_fac_sce_field;
+      double emb_recom_fac_corr_dqdx = dqdx_all_corr * emb_recom_fac_nom_field / emb_recom_fac_sce_field;
       emb_dQdx_sum_vec_dedx_assumes.at(j) = emb_dQdx_sum_vec_dedx_assumes.at(j) + emb_recom_fac_corr_dqdx;
     }
 
@@ -319,9 +324,14 @@ void fill_lifetime_hists(int nGroupedWires, int plane, const TTreeReaderArray<fl
 
 void run_lifetime_loop(TString list_file, TString out_suffix, bool IsData = false) {
 
-  sce_corr_mc -> ReadHistograms();
   isdata = IsData;
-  
+
+  sce_corr_mc -> ReadHistograms();
+  TString yz_corr_f = "yz_correction_map_data1e20.root";
+  if(!isdata) yz_corr_f = "yz_correction_map_mcp2025b5e18.root";
+  yz_corr -> SetFileStr(yz_corr_f);
+  yz_corr -> ReadHistograms();
+
   /////////////////////////////////
   // == Define histograms
   /////////////////////////////////
@@ -419,11 +429,11 @@ void run_lifetime_loop(TString list_file, TString out_suffix, bool IsData = fals
   cout << "N_entries : " << N_entries << endl;
   int current_entry = 0;
 
-  int N_run = 200000;
+  int N_run = 20000;
   double track_length_cut = 60.;
   // Loop over all entries of the TTree
   while (myReader.Next()) {
-    if(current_entry > N_run) break;
+    //if(current_entry > N_run) break;
 
     if(current_entry%100 == 0){
       cout << current_entry << " / " << N_entries << endl;

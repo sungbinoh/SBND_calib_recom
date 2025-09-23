@@ -5,7 +5,7 @@
 #include "BetheBloch.h"
 #include <iostream>
 
-TSpline3 * muon_sp_range_to_KE = Get_sp_range_KE(mass_muon);
+//TSpline3 * muon_sp_range_to_KE = Get_sp_range_KE(mass_muon);
 
 bool isdata = false;
 TString run_str = "";
@@ -20,7 +20,7 @@ void draw(TString plane, TString y_var, double x_min, double x_max, double y_min
   TString suffix[] = {"", "_NE", "_NW", "_SE", "_SW", "_cafv", "_meddqdx"};
   
   TString input_file_dir = getenv("OUTPUTROOT_PATH");
-  TFile *f_data = new TFile(input_file_dir + "/gaus_comp_fit_" + run_str + ".root");
+  TFile *f_data = new TFile(input_file_dir + "/rr_vs_dedx/gaus_comp_fit_" + run_str + ".root");
   vector<TGraphErrors*> gr_vec;
   for(int i = 0; i < 7; i++){
     TString this_suffix = suffix[i];
@@ -148,7 +148,7 @@ void draw(TString plane, TString y_var, double x_min, double x_max, double y_min
   latex_particle.SetTextAlign(31);
   latex_ProtoDUNE.SetTextSize(0.03);
   latex_particle.SetTextSize(0.03);
-  latex_ProtoDUNE.DrawLatex(0.16, 0.96, "#font[62]{SBND: Data} Run " + run_str + ", " + plane + ", #font[42]{#it{#scale[1.0]{Preliminary}}}");
+  latex_ProtoDUNE.DrawLatex(0.16, 0.96, "#font[62]{SBND: Data} "  + plane + ", #font[42]{#it{#scale[1.0]{Preliminary}}}");
   latex_particle.DrawLatex(0.95, 0.96, "Cathode Passing Stopping Tracks");
 
   TString output_plot_dir = getenv("PLOT_PATH");
@@ -158,12 +158,9 @@ void draw(TString plane, TString y_var, double x_min, double x_max, double y_min
   
 }
 
-void draw_gaus_comp_syst(int run_num = 0){
-  
-  if(run_num != 0){
-    isdata = true;
-    run_str = TString::Format("%d", run_num);
-  }
+void draw_gaus_comp_syst(){
+
+  run_str = "Data";
   
   setTDRStyle();
   TString planes[] = {"plane0", "plane1", "plane2"};

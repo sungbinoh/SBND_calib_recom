@@ -17,12 +17,12 @@ void draw(TString y_var, double x_min, double x_max, double y_min, double y_max,
   TString gr_name = "rr_vs_" + y_var;
 
   TString input_file_dir = getenv("OUTPUTROOT_PATH");
-  TFile *f_data = new TFile(input_file_dir + "/gaus_comp_fit_" + run_str + ".root");
+  TFile *f_data = new TFile(input_file_dir + "/rr_vs_dedx/gaus_comp_fit_Data.root");
   TGraphErrors *gr_plane0_data = (TGraphErrors*)gDirectory -> Get("plane0_" + gr_name);
   TGraphErrors *gr_plane1_data = (TGraphErrors*)gDirectory -> Get("plane1_" + gr_name);
   TGraphErrors *gr_plane2_data = (TGraphErrors*)gDirectory -> Get("plane2_" + gr_name);
 
-  TFile *f_mc = new TFile(input_file_dir + "/gaus_comp_fit_MC.root");
+  TFile *f_mc = new TFile(input_file_dir + "/rr_vs_dedx/gaus_comp_fit_MC.root");
   TGraphErrors *gr_plane0_mc = (TGraphErrors*)gDirectory -> Get("plane0_" + gr_name);
   TGraphErrors *gr_plane1_mc = (TGraphErrors*)gDirectory -> Get("plane1_" + gr_name);
   TGraphErrors *gr_plane2_mc = (TGraphErrors*)gDirectory -> Get("plane2_" + gr_name);
@@ -83,7 +83,7 @@ void draw(TString y_var, double x_min, double x_max, double y_min, double y_max,
   mc_temp -> SetLineStyle(2);
 
   TLegend *l = new TLegend(0.4, 0.6, 0.85, 0.90);
-  l -> AddEntry(data_temp, "Data Run " + run_str, "lp");
+  l -> AddEntry(data_temp, "Data", "lp");
   l -> AddEntry(mc_temp, "MC", "lp");
   l -> AddEntry(gr_plane0_data, "Plane 0", "lp");
   l -> AddEntry(gr_plane1_data, "Plane 1", "lp");
@@ -165,7 +165,7 @@ void draw(TString y_var, double x_min, double x_max, double y_min, double y_max,
   latex_particle.SetTextAlign(31);
   latex_ProtoDUNE.SetTextSize(0.03);
   latex_particle.SetTextSize(0.03);
-  latex_ProtoDUNE.DrawLatex(0.16, 0.96, "#font[62]{SBND: Data} Run " + run_str);
+  latex_ProtoDUNE.DrawLatex(0.16, 0.96, "#font[62]{SBND: Data}");
   latex_particle.DrawLatex(0.95, 0.96, "Cathode Passing Stopping Tracks");
 
   TString output_plot_dir = getenv("PLOT_PATH");
@@ -176,7 +176,7 @@ void draw(TString y_var, double x_min, double x_max, double y_min, double y_max,
 }
 
 void draw_gaus_comp_data_vs_MC(){
-   
+
   setTDRStyle();
   draw("MPV", 5., 200., 1., 4., "dE/dx MPV");
   draw("sigmaG", 5., 200., 0., 1., "#sigma_{G}");

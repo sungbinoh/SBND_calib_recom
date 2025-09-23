@@ -5,12 +5,14 @@
 
 TRandom3 gRan(1800);
 map<TString, vector<double>> fitting_results;
-
+TString sample_str = "run_18255_and_18259";
 void Fit_1D_plots(TString input_file_name, int rebin_x, int rebin_y, double tdrift_low, double tdrift_high, TString side, TString ngroupwires, TString plane, TString suffix, bool fit_bkg = false){
 
   TString input_file_dir = getenv("OUTPUTROOT_PATH");
-  TFile *f = new TFile(input_file_dir + "/lifetime/" + input_file_name);
+  TFile *f = new TFile(input_file_dir + "/lifetime/whicht00/" + input_file_name);
   TString histname = "h_dQdx_tDrift" + side + "_" + ngroupwires + "wires_" + plane;
+
+  cout << "[Fit_1D_plots] histname + suffix: " << histname + suffix << endl;
   TH2D *hist_2D = (TH2D*)gDirectory -> Get(histname + suffix);
 
   hist_2D -> RebinX(rebin_x);
@@ -65,20 +67,21 @@ void Fit_1D_plots(TString input_file_name, int rebin_x, int rebin_y, double tdri
 
     TH1D *this_hist_1D_clone = (TH1D*)this_hist_1D -> Clone();
 
-    TLegend *l = new TLegend(0.50, 0.40, 0.92, 0.85);
+    TLegend *l = new TLegend(0.55, 0.40, 0.92, 0.85);
 
     double max_x = this_hist_1D -> GetBinCenter(this_hist_1D -> GetMaximumBin());
     double width_x = this_hist_1D -> GetBinWidth(1);
     Double_t fitting_range[2];
-    fitting_range[0] = 400.;
-    fitting_range[1] = 3000.;
+    fitting_range[0] = 300.;
+    fitting_range[1] = 1800.;
     Double_t sv[6], pllo[4], plhi[4], fp[4], fpe[4];
     sv[0] = 30.;
-    sv[1] = 1000.; //max_x;
+    //sv[1] = 1000.; //max_x;
+    sv[1] = 1100.; //max_x; after angle cut
     sv[2] = this_hist_1D -> Integral() * 0.05 * width_x;
     sv[3] = 60.;
-    sv[4] = 90.;
-    sv[5] = -0.03;
+    sv[4] = 30.;
+    sv[5] = -0.01;
     for(int j=0; j<4; ++j){
       pllo[j] = 0.01*sv[j];
       plhi[j] = 100*sv[j];
@@ -140,6 +143,8 @@ void Fit_1D_plots(TString input_file_name, int rebin_x, int rebin_y, double tdri
       l -> AddEntry(this_hist_1D, Form("#sigma_{Gaus} : %.2f #pm %.2f", this_Gaus_sigma, this_Gaus_sigma_err), "");
       l -> AddEntry(this_hist_1D, Form("#chi^{2} / ndf : %.2f", chisqr / ndf), "");
       l -> AddEntry(this_bkg, "Background", "l");
+      l -> AddEntry(this_bkg, Form("P_{0}: %.2e #pm %.2e", this_Langau_fit -> GetParameter(4), this_Langau_fit -> GetParError(4)), "");
+      l -> AddEntry(this_bkg, Form("P_{1}: %.2e #pm %.2e", this_Langau_fit -> GetParameter(5), this_Langau_fit -> GetParError(5)), "");
       l -> AddEntry(this_Langaubkg, "Background + LanGau", "l");
 
     }
@@ -190,7 +195,7 @@ void Fit_1D_plots(TString input_file_name, int rebin_x, int rebin_y, double tdri
     latex_method.DrawLatex(0.18, 0.87, tdrift_latex);
 
     TString output_plot_dir = getenv("PLOT_PATH");
-    TString outfile_str = output_plot_dir + "/lifetime/1D/wire" + ngroupwires + "/" + plane + "_" + side + "/" + tdrift_str + suffix + ".pdf";
+    TString outfile_str = output_plot_dir + "/lifetime/whicht00/" + sample_str + "/1D/wire" + ngroupwires + "/" + plane + "_" + side + "/" + tdrift_str + suffix + ".pdf";
     TString outfile_dir = gSystem->DirName(outfile_str);
     if (gSystem->AccessPathName(outfile_dir)) {
       std::cout << "Directory does not exist, creating: " << outfile_dir << std::endl;
@@ -267,29 +272,50 @@ void Fit_lifetime(TString side, TString ngroupwires, TString plane, TString suff
   latex_particle.DrawLatex(0.95, 0.96, "Anode-Cathode Passing Tracks");
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  output_plot_dir = output_plot_dir + "/lifetime/";
-  c -> SaveAs(output_plot_dir + "lifetime_wire" + ngroupwires + "_" + plane + "_" + side + suffix + ".pdf");
+  output_plot_dir = output_plot_dir + "/lifetime/whicht00/";
+  TString outfile_str = output_plot_dir + sample_str + "/lifetime_wire" + ngroupwires + "_" + plane + "_" + side + suffix + ".pdf";
+  TString outfile_dir = gSystem->DirName(outfile_str);
+  if (gSystem->AccessPathName(outfile_dir)) {
+    std::cout << "Directory does not exist, creating: " << outfile_dir << std::endl;
+    gSystem->mkdir(outfile_dir, kTRUE);
+  }
+  c -> SaveAs(outfile_str);
   gr_1 -> SetName(ngroupwires + "_" + plane + "_" + side + suffix);
   gr_1 -> Write();
   c -> Close();
 }
 
-void run_lifetime_fit(){
+void run_lifetime_fit_sce_efield_corr(TString filename, TString outfilename, TString sample_str_){
+
+  sample_str = sample_str_;
 
   setTDRStyle();
 
-  TString filename = "output_lifetime_2025A_Sprint25Dev_data.root";
-  TString outfilename = "fit_lifetime_2025A_SpringDev_data_bnbcosmics.root";
+  //TString filename = "output_lifetime_2025A_Sprint25Dev_data.root";
+  //TString outfilename = "fit_lifetime_2025A_SpringDev_data_bnbcosmics.root";
+
+  //TString filename = "output_lifetime_2025SpringFinalValid_data_bnb_light.root";
+  //TString outfilename = "fit_lifetime_2025B_final_valid_data_bnb_light.root";
   
   TString sides[] = {"E", "W"};
   TString planes[] = {"plane0", "plane1", "plane2"};
+  TString dedx_assume_str[] = {"1p7", "1p8", "1p9", "2p0", "2p1", "2p2", "2p3"};
+  int N_dedx_assume = 7;
+  
   for(int i = 0; i < 3; i++){
     TString this_plane = planes[i];
+
+    if(i != 2) continue; // FIXME: running only collection plane
     for(int j = 0; j < 2; j++){
       TString this_side = sides[j];
-      Fit_1D_plots(filename, 2, 2, 0.1, 1.24, this_side, "10", this_plane, "");
-      Fit_1D_plots(filename, 2, 2, 0.1, 1.24, this_side, "10", this_plane, "_sce_corr");
+      Fit_1D_plots(filename, 2, 2, 0.1, 1.24, this_side, "10", this_plane, "", false);
+      Fit_1D_plots(filename, 2, 2, 0.1, 1.24, this_side, "10", this_plane, "_sce_corr", false);
 
+      for(int k = 0; k < N_dedx_assume; k++){
+	TString this_dedx_assume_str = dedx_assume_str[k];
+	//Fit_1D_plots(filename, 2, 2, 0.1, 1.24, this_side, "10", this_plane, "_sce_corr_e_distor_mb_dedx" + this_dedx_assume_str, false);
+	Fit_1D_plots(filename, 2, 2, 0.1, 1.24, this_side, "10", this_plane, "_sce_corr_e_distor_emb_dedx" + this_dedx_assume_str, false);
+      }
     }
   }
 
@@ -307,16 +333,24 @@ void run_lifetime_fit(){
   //Fit_lifetime("space", "corr_trk_len", 0., 1.3, 1010., 1100.);
   //Fit_lifetime("time", "corr_trk_len", 0., 1.3, 1010., 1100.);
   TString output_file_dir = getenv("OUTPUTROOT_PATH");
-  TString out_root_name = output_file_dir + "/lifetime/" + outfilename;
+  TString out_root_name = output_file_dir + "/lifetime/whicht00/fit_lifetime_" + outfilename + ".root";
   TFile *outfile = new TFile(out_root_name, "RECREATE");
   outfile -> cd();
   for(int i = 0; i < 3; i++){
     TString this_plane = planes[i];
+    if(i != 2) continue; // FIXME: running only collection plane 
+
     for(int j = 0; j < 2; j++){
       TString this_side = sides[j];
       TString this_id = this_plane + this_side + "10";
       Fit_lifetime(this_side, "10", this_plane, "", 0., 1.3, 1000., 1200.);
       Fit_lifetime(this_side, "10", this_plane, "_sce_corr", 0., 1.3, 1000., 1200.);
+
+      for(int k = 0; k < N_dedx_assume; k++){
+	TString this_dedx_assume_str = dedx_assume_str[k];
+	//Fit_lifetime(this_side, "10", this_plane, "_sce_corr_e_distor_mb_dedx" + this_dedx_assume_str, 0., 1.3, 1000., 1200.);
+	Fit_lifetime(this_side, "10", this_plane, "_sce_corr_e_distor_emb_dedx" + this_dedx_assume_str, 0., 1.3, 1000., 1200.);
+      }
     }
   }
 

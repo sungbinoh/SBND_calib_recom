@@ -14,7 +14,7 @@ YZCorr *yz_corr = new YZCorr();
 recom *recom_fns = new recom();
 bool isdata = false;
 
-int nGroupedWires_set = 1;
+int nGroupedWires_set = 10;
 int NBinsX = 100;
 int NBinsT = 100;
 int NBinsdQdx = 300;

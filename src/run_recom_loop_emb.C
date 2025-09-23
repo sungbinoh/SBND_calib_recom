@@ -8,10 +8,12 @@
 #include "Math/Vector3D.h"
 #include "BetheBloch.h"
 #include "SCECorr.h"
+#include "YZCorr.h"
 
 bool isdata = false;
 BetheBloch *muon_BB = new BetheBloch(13);
 SCECorr *sce_corr_mc = new SCECorr(false);
+YZCorr *yz_corr = new YZCorr();
 double lifetime = 100.; // mc default
 
 double dqdx_scale_correction_angle(double theta){
@@ -129,34 +131,35 @@ void Fill_corrected_dqdx_plots(TString suffix, int plane, const TTreeReaderArray
     if(pitch[i] > 1.) continue;
     if(rr[i] < 0.) continue;
 
-    //cout << "[Fill_corrected_dqdx_plots] " << i << ", running" << endl;
-
     // sce corr
-    //cout << "[Fill_corrected_dqdx_plots] making sp_sce_uncorr" << endl;
     XYZVector sp_sce_uncorr(sp_x[i], sp_y[i], sp_z[i]);
-    //cout << "[Fill_corrected_dqdx_plots] making sp_sce_corr" << endl;
     XYZVector sp_sce_corr = sce_corr_mc -> WireToTrajectoryPosition(sp_sce_uncorr);
     double pitch_sce_uncorr = sce_corr_mc -> meas_pitch(sp_x[i], sp_y[i], sp_z[i], dirx[i], diry[i], dirz[i], plane, false);
     double pitch_sce_corr = sce_corr_mc -> meas_pitch(sp_x[i], sp_y[i], sp_z[i], dirx[i], diry[i], dirz[i], plane, true);
     double dqdx_sce_corr = dqdx[i] * pitch_sce_uncorr / pitch_sce_corr;
 
+    // yz unif corr
+    //double dqdx_yz_corr =  dqdx_sce_corr * yz_corr -> GetYZCorr(sp_sce_corr, plane); // FIXME
+    double dqdx_yz_corr =  dqdx_sce_corr / yz_corr -> GetYZCorr(sp_sce_corr, plane);
+
     // e-lifetime corr
     double this_lifetime_corr = Lifetime_Correction(sp_x[i], lifetime);
     double this_lifetime_corr_east = Lifetime_Correction(sp_x[i], 44.5);
     double this_lifetime_corr_west = Lifetime_Correction(sp_x[i], 33.8);
-    //if(isdata) this_lifetime_corr = Lifetime_Correction(sp_x[i], 35.0); // == FIXME, for data, do not apply lifetime correction. Should be updated in future to use different lifetime values for MC and data
+    double dqdx_lifetime_corr = dqdx_yz_corr * this_lifetime_corr;
 
-    double dqdx_lifetime_corr = dqdx_sce_corr * this_lifetime_corr;
-
-    // trk angle dqdx reco bias corr: NOT APPLIED
-    double this_dqdx_bias_corr = dqdx_scale_correction_angle(theta_trk_x);
-    this_dqdx_bias_corr = 1.; // == no correction
-    double dqdx_bias_corr = dqdx_lifetime_corr * this_dqdx_bias_corr;
+    // dqdx final
+    double dqdx_all_corr = dqdx_lifetime_corr;
     
-    FillHist("rr_vs_lifetime_corr_dqdx_" + suffix, rr[i], dqdx_lifetime_corr, 1., 300., 0., 300., 5000., 0., 5000.);
+    // trk angle dqdx reco bias corr: NOT APPLIED
+    //double this_dqdx_bias_corr = dqdx_scale_correction_angle(theta_trk_x);
+    //this_dqdx_bias_corr = 1.; // == no correction
+    //double dqdx_bias_corr = dqdx_all_corr * this_dqdx_bias_corr;
+    
+    FillHist("rr_vs_lifetime_corr_dqdx_" + suffix, rr[i], dqdx_all_corr, 1., 300., 0., 300., 5000., 0., 5000.);
     FillHist("rr_vs_pitch_" + suffix, rr[i], pitch[i], 1., 300., 0., 300., 200., 0., 2.);
     FillHist("pitch_" + suffix, pitch[i], 1., 200., 0., 2.);
-    FillHist("pitch_x_vs_lifetime_corr_dqdx_" + suffix, pitch[i], dqdx_lifetime_corr, 1., 200., 0., 2., 3000., 0., 3000.);
+    FillHist("pitch_x_vs_lifetime_corr_dqdx_" + suffix, pitch[i], dqdx_all_corr, 1., 200., 0., 2., 3000., 0., 3000.);
 
     if(i == 0) FillHist("last_x_" + suffix, last_x, 1., 500., -250., 250.);
 
@@ -179,23 +182,23 @@ void Fill_corrected_dqdx_plots(TString suffix, int plane, const TTreeReaderArray
     FillHist("dEdx_MPV_vs_sce_corr_dqdx_" + suffix, this_dEdx_MPV, dqdx_sce_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
     FillHist("dEdx_MPV_vs_sce_corr_dqdx_" + suffix + "_phi" + theta_trk_x_str, this_dEdx_MPV, dqdx_sce_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
 
-    FillHist("dEdx_MPV_vs_lifetime_corr_dqdx_" + suffix, this_dEdx_MPV, dqdx_lifetime_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
-    FillHist("dEdx_MPV_vs_lifetime_corr_dqdx_" + suffix + "_phi" + theta_trk_x_str, this_dEdx_MPV, dqdx_lifetime_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
+    FillHist("dEdx_MPV_vs_yz_n_lifetime_corr_dqdx_" + suffix, this_dEdx_MPV, dqdx_all_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
+    FillHist("dEdx_MPV_vs_yz_n_lifetime_corr_dqdx_" + suffix + "_phi" + theta_trk_x_str, this_dEdx_MPV, dqdx_all_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
 
     // == Divide into NE, NW, SE and SW
     if(sp_x[i] < 0.){
       FillHist("dEdx_MPV_vs_east_only_lifetime_corr_dqdx_" + suffix, this_dEdx_MPV, dqdx_sce_corr * this_lifetime_corr_east, 1., 3000., 0., 30., 3000., 0., 3000.);
       FillHist("dEdx_MPV_vs_east_only_lifetime_corr_dqdx_" + suffix + "_phi" + theta_trk_x_str, this_dEdx_MPV, dqdx_sce_corr * this_lifetime_corr_east, 1., 3000., 0., 30., 3000., 0., 3000.);
 
-      if(sp_z[i] > 250.) FillHist("dEdx_MPV_vs_lifetime_corr_dqdx_" + suffix + "_NE", this_dEdx_MPV, dqdx_lifetime_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
-      else FillHist("dEdx_MPV_vs_lifetime_corr_dqdx_" + suffix + "_SE", this_dEdx_MPV, dqdx_lifetime_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
+      if(sp_z[i] > 250.) FillHist("dEdx_MPV_vs_yz_n_lifetime_corr_dqdx_" + suffix + "_NE", this_dEdx_MPV, dqdx_all_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
+      else FillHist("dEdx_MPV_vs_yz_n_lifetime_corr_dqdx_" + suffix + "_SE", this_dEdx_MPV, dqdx_all_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
     }
     else{
       FillHist("dEdx_MPV_vs_west_only_lifetime_corr_dqdx_" + suffix, this_dEdx_MPV, dqdx_sce_corr * this_lifetime_corr_west, 1., 3000., 0., 30., 3000., 0., 3000.);
       FillHist("dEdx_MPV_vs_west_only_lifetime_corr_dqdx_" + suffix + "_phi" + theta_trk_x_str, this_dEdx_MPV, dqdx_sce_corr * this_lifetime_corr_west, 1., 3000., 0., 30., 3000., 0., 3000.);
 
-      if(sp_z[i] > 250.) FillHist("dEdx_MPV_vs_lifetime_corr_dqdx_" + suffix + "_NW", this_dEdx_MPV, dqdx_lifetime_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
-      else FillHist("dEdx_MPV_vs_lifetime_corr_dqdx_" + suffix + "_SW", this_dEdx_MPV, dqdx_lifetime_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
+      if(sp_z[i] > 250.) FillHist("dEdx_MPV_vs_yz_n_lifetime_corr_dqdx_" + suffix + "_NW", this_dEdx_MPV, dqdx_all_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
+      else FillHist("dEdx_MPV_vs_yz_n_lifetime_corr_dqdx_" + suffix + "_SW", this_dEdx_MPV, dqdx_all_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
     }
   }
 }
@@ -253,13 +256,11 @@ void run_recom_loop_emb(TString list_file, TString out_suffix, bool IsData = fal
   if(isdata) lifetime = 35.;
   cout << "lifetime: " << lifetime << endl;
 
+  TString yz_corr_f = "yz_correction_map_data1e20.root";
+  if(!isdata) yz_corr_f = "yz_correction_map_mcp2025b5e18.root";
+  yz_corr -> SetFileStr(yz_corr_f);
+  yz_corr -> ReadHistograms();
   
-  /////////////////////////////////
-  // == Define histograms
-  /////////////////////////////////
-  // == Histograms for overal events
-  TH1F *hist_selected = new TH1F("selected", "selected", 3., -0.5, 2.5);
-
   /////////////////////////////////
   // == Call Trees
   /////////////////////////////////
@@ -354,7 +355,7 @@ void run_recom_loop_emb(TString list_file, TString out_suffix, bool IsData = fal
   int _run_to = 300000;
   //_run_to = 1000;
   while (myReader.Next()) {
-    if(current_entry > _run_to) break;
+    //if(current_entry > _run_to) break;
    
     if(current_entry%100 == 0){
       cout << current_entry << " / " << N_entries << endl;
@@ -512,8 +513,6 @@ void run_recom_loop_emb(TString list_file, TString out_suffix, bool IsData = fal
   TString output_file_name = output_rootfile_dir + "/output_recom_loop_emb_" + out_suffix + ".root";
   out_rootfile = new TFile(output_file_name, "RECREATE");
   out_rootfile -> cd();
-  
-  hist_selected -> Write();
   WriteHist();
 
   out_rootfile -> Close();

@@ -7,12 +7,14 @@
 #include "mylib.h"
 #include "SCECorr.h"
 #include "recom.h"
+#include "YZCorr.h"
 
 SCECorr *sce_corr_mc = new SCECorr(false);
+YZCorr *yz_corr = new YZCorr();
 recom *recom_fns = new recom();
 bool isdata = false;
 
-//int nGroupedWires = 10;
+int nGroupedWires_set = 1;
 int NBinsX = 100;
 int NBinsT = 100;
 int NBinsdQdx = 300;
@@ -158,8 +160,11 @@ void fill_lifetime_hists(int nGroupedWires, int plane, const TTreeReaderArray<fl
     double pitch_sce_uncorr = sce_corr_mc -> meas_pitch(sp_x[i], sp_y[i], sp_z[i], dirx[i], diry[i], dirz[i], plane, false);
     double pitch_sce_corr = sce_corr_mc -> meas_pitch(sp_x[i], sp_y[i], sp_z[i], dirx[i], diry[i], dirz[i], plane, true);
     double dqdx_sce_corr = dqdx[i] * pitch_sce_uncorr / pitch_sce_corr;
-
-    dQdx_sce_sum += dqdx_sce_corr;
+    double dqdx_yz_corr = dqdx_sce_corr * yz_corr -> GetYZCorr(sp_sce_corr, plane);
+    double dqdx_all_corr = dqdx_yz_corr;
+    //double dqdx_all_corr = dqdx_sce_corr;
+    
+    dQdx_sce_sum += dqdx_all_corr;
     x_sce_sum += sp_sce_corr.X();
 
     double sce_efield = sce_corr_mc -> GetEfield(sp_sce_corr);
@@ -172,12 +177,12 @@ void fill_lifetime_hists(int nGroupedWires, int plane, const TTreeReaderArray<fl
       double this_dedx = dedx_assumes.at(j);
       double mb_recom_fac_nom_field = recom_fns -> dedx2recomfactor_modbox(this_dedx, 0.5);
       double mb_recom_fac_sce_field = recom_fns -> dedx2recomfactor_modbox(this_dedx, sce_efield);
-      double mb_recom_fac_corr_dqdx = dqdx_sce_corr * mb_recom_fac_nom_field / mb_recom_fac_sce_field;
+      double mb_recom_fac_corr_dqdx = dqdx_all_corr * mb_recom_fac_nom_field / mb_recom_fac_sce_field;
       mb_dQdx_sum_vec_dedx_assumes.at(j) = mb_dQdx_sum_vec_dedx_assumes.at(j) + mb_recom_fac_corr_dqdx;
 
       double emb_recom_fac_nom_field = recom_fns -> dedx2recomfactor_emb(this_dedx, 0.5);
       double emb_recom_fac_sce_field = recom_fns -> dedx2recomfactor_emb(this_dedx, sce_efield);
-      double emb_recom_fac_corr_dqdx = dqdx_sce_corr * emb_recom_fac_nom_field / emb_recom_fac_sce_field;
+      double emb_recom_fac_corr_dqdx = dqdx_all_corr * emb_recom_fac_nom_field / emb_recom_fac_sce_field;
       emb_dQdx_sum_vec_dedx_assumes.at(j) = emb_dQdx_sum_vec_dedx_assumes.at(j) + emb_recom_fac_corr_dqdx;
     }
 
@@ -319,9 +324,14 @@ void fill_lifetime_hists(int nGroupedWires, int plane, const TTreeReaderArray<fl
 
 void run_lifetime_loop(TString list_file, TString out_suffix, bool IsData = false) {
 
-  sce_corr_mc -> ReadHistograms();
   isdata = IsData;
-  
+
+  sce_corr_mc -> ReadHistograms();
+  TString yz_corr_f = "yz_correction_map_data1e20.root";
+  if(!isdata) yz_corr_f = "yz_correction_map_mcp2025b5e18.root";
+  yz_corr -> SetFileStr(yz_corr_f);
+  yz_corr -> ReadHistograms();
+
   /////////////////////////////////
   // == Define histograms
   /////////////////////////////////
@@ -359,6 +369,7 @@ void run_lifetime_loop(TString list_file, TString out_suffix, bool IsData = fals
   TTreeReaderValue<float> trklen(myReader, "trk.length");
 
   TTreeReaderValue<int> selected(myReader, "trk.selected");
+  TTreeReaderValue<int> whicht0(myReader, "trk.whicht0");
   //TTreeReaderValue<Float_t> trk_t0(myReader, "trk.t0");
   TTreeReaderValue<Float_t> trk_t0(myReader, "trk.t0PFP");
   TTreeReaderArray<float> dqdx0(myReader, "trk.hits0.dqdx"); // hits on plane 0 (Induction)
@@ -418,11 +429,11 @@ void run_lifetime_loop(TString list_file, TString out_suffix, bool IsData = fals
   cout << "N_entries : " << N_entries << endl;
   int current_entry = 0;
 
-  int N_run = 200000;
+  int N_run = 20000;
   double track_length_cut = 60.;
   // Loop over all entries of the TTree
   while (myReader.Next()) {
-    if(current_entry > N_run) break;
+    //if(current_entry > N_run) break;
 
     if(current_entry%100 == 0){
       cout << current_entry << " / " << N_entries << endl;
@@ -431,21 +442,21 @@ void run_lifetime_loop(TString list_file, TString out_suffix, bool IsData = fals
 
     hist_selected -> Fill(*selected);
 
-    // == Tracks selected as Anode+Cathode crossing
-    if (*selected == 1) {
+    // == Tracks selected as Anode+Cathode crossing and t0 is from TPC (not CRT)
+    if (*selected == 1 && *whicht0 == 0) {
       // == 1st ind plane
       if(evt_sel(sp_x0, sp_y0, sp_z0, rr0, dqdx0)){
 	// -- cos vals: cosyz, coszx, coszx+, coszx-
 	double cos_vals_0[4];
         get_cos_vals(sp_x0, sp_y0, sp_z0, rr0, cos_vals_0);
-	fill_lifetime_hists(10, 0, sp_x0, sp_y0, sp_z0, dirx0, diry0, dirz0, wire0, dqdx0, time0, *trk_t0);
+	fill_lifetime_hists(nGroupedWires_set, 0, sp_x0, sp_y0, sp_z0, dirx0, diry0, dirz0, wire0, dqdx0, time0, *trk_t0);
       }
 
       if(evt_sel(sp_x1, sp_y1, sp_z1, rr1, dqdx1)){
         // -- cos vals: cosyz, coszx, coszx+, coszx-
         double cos_vals_1[4];
         get_cos_vals(sp_x1, sp_y1, sp_z1, rr1, cos_vals_1);
-        fill_lifetime_hists(10, 1, sp_x1, sp_y1, sp_z1, dirx1, diry1, dirz1, wire1, dqdx1, time1, *trk_t0);
+        fill_lifetime_hists(nGroupedWires_set, 1, sp_x1, sp_y1, sp_z1, dirx1, diry1, dirz1, wire1, dqdx1, time1, *trk_t0);
       }
 
       if(evt_sel(sp_x2, sp_y2, sp_z2, rr2, dqdx2)){
@@ -454,7 +465,7 @@ void run_lifetime_loop(TString list_file, TString out_suffix, bool IsData = fals
         get_cos_vals(sp_x2, sp_y2, sp_z2, rr2, cos_vals_2);
 
 	if(fabs(cos_vals_2[1]) < 0.75){
-	  fill_lifetime_hists(10, 2, sp_x2, sp_y2, sp_z2, dirx2, diry2, dirz2, wire2, dqdx2, time2, *trk_t0);
+	  fill_lifetime_hists(nGroupedWires_set, 2, sp_x2, sp_y2, sp_z2, dirx2, diry2, dirz2, wire2, dqdx2, time2, *trk_t0);
 	}
       }
     }
@@ -469,4 +480,6 @@ void run_lifetime_loop(TString list_file, TString out_suffix, bool IsData = fals
 
   WriteHist();
   out_rootfile -> Close();
+
+  cout << "[run_lifetime_loop] finished" << endl;
 }

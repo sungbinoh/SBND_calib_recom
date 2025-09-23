@@ -392,7 +392,14 @@ void run_calib_const_fit_ebm(TString filename, TString _run_str, TString _run_st
 
   double mean_theta = Get_mean_phi(filename);
   cout << "mean_theta: " << mean_theta << endl;
-  
+
+  TString filename = "output_recom_loop_emb_run_" + run_str + ".root";
+  if(!isdata){
+    //filename = "output_recom_loop_emb_mc.root";
+    filename = "output_recom_loop_emb_mc_2025a_spring.root";
+    run_str = "MC";
+  }
+
   TString suffixes[] = {"", "_phi40to50", "_phi50to60", "_phi60to70", "_phi70to80", "_phi80to85", "_phi85to90"};
   double phis[] = {mean_theta, 45., 55., 65., 75., 82.5, 87.5};
   for(int i = 0; i < 7; i++){

@@ -79,6 +79,7 @@ void BetheBloch::SetPdgCode(int pdg) {
   else if (abs(pdgcode) == 211) mass = 139.57039, charge = 1;
   else if (abs(pdgcode) == 321) mass = 493.677, charge = 1;
   else if (pdgcode == 2212) mass = 938.27208816, charge = 1;
+  else if (pdgcode == 1000010020) mass = 1875.612, charge = 1;
   else { cout << "Unknown pdg code " << pdgcode << endl; exit(1); }
   CreateSplines();
 }

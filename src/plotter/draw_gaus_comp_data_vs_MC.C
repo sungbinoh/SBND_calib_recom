@@ -101,10 +101,16 @@ void draw(TString y_var, double x_min, double x_max, double y_min, double y_max,
     for(int i = 0; i < N_BB_points; i++){
       double this_rr = rr_min + rr_step * (i + 0.);
       double this_KE = muon_BB -> KEFromRangeSpline(this_rr);
+      double gamma = (this_KE/mass_muon)+1.0;
+      double beta = TMath::Sqrt(1-(1.0/(gamma*gamma)));
+      double this_xi = muon_BB -> Landau_xi(this_KE, mean_pitch);
+      double this_Wmax = muon_BB -> Get_Wmax(this_KE);
+      double this_kappa = this_xi / this_Wmax;
+      double this_dEdx_BB = muon_BB -> meandEdx(this_KE);
+      double par[5] = {this_kappa, beta * beta, this_xi, this_dEdx_BB, mean_pitch};
       TF1 * this_dEdx_PDF = muon_BB -> dEdx_PDF(this_KE, mean_pitch);
       double this_dEdx_MPV = this_dEdx_PDF -> GetMaximumX();
-
-      cout << "this_rr: " << this_rr << ", this_KE: " << this_KE << ", this_dEdx_MPV: " << this_dEdx_MPV << endl;
+      delete this_dEdx_PDF;
       
       BB_rr.push_back(this_rr);
       BB_dedx_MPV.push_back(this_dEdx_MPV);
@@ -129,9 +135,16 @@ void draw(TString y_var, double x_min, double x_max, double y_min, double y_max,
     for(int i = 0; i < N_BB_points; i++){
       double this_rr = rr_min + rr_step * (i + 0.);
       double this_KE = muon_BB -> KEFromRangeSpline(this_rr);
+      double gamma = (this_KE/mass_muon)+1.0;
+      double beta = TMath::Sqrt(1-(1.0/(gamma*gamma)));
+      double this_xi = muon_BB -> Landau_xi(this_KE, mean_pitch);
+      double this_Wmax = muon_BB -> Get_Wmax(this_KE);
+      double this_kappa = this_xi / this_Wmax;
+      double this_dEdx_BB = muon_BB -> meandEdx(this_KE);
+      double par[5] = {this_kappa, beta * beta, this_xi, this_dEdx_BB, mean_pitch};
       TF1 * this_dEdx_PDF = muon_BB -> dEdx_PDF(this_KE, mean_pitch);
       double this_dEdx_MPV = this_dEdx_PDF -> GetMaximumX();
-      //delete this_dEdx_PDF;
+      delete this_dEdx_PDF;
       
       BB_rr.push_back(this_rr);
       BB_dedx_MPV.push_back(this_dEdx_MPV);
@@ -164,8 +177,6 @@ void draw(TString y_var, double x_min, double x_max, double y_min, double y_max,
 
 void draw_gaus_comp_data_vs_MC(){
 
-  run_str = "2025A_Spring_Dev";
-  
   setTDRStyle();
   draw("MPV", 5., 200., 1., 4., "dE/dx MPV");
   draw("sigmaG", 5., 200., 0., 1., "#sigma_{G}");

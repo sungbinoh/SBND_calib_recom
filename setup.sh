@@ -37,12 +37,34 @@ else
   echo "I do not automatically set up ROOT. If ROOT is already setup, it shoould be okay"
 fi
 
+#### -- setup grid output
+if [[ $(hostname) == *sbnd* || $(hostname) == *jupyter* ]]; then
+    export SBNDCALIB_GRID_OUT_DIR="/pnfs/sbnd/scratch/users/$USER/sbnd_calib_out"
+    mkdir -p $SBNDCALIB_GRID_OUT_DIR
+fi
+
 #### -- Calib ntuple list dir
 export SAMPLE_PATH=$DATA_PATH/sample_list/sungbinosx/
-if [[ `hostname` == *"sbnd"* ]]
+if [[ `hostname` == *"sbnd"* || `hostname` == *"$USER"* ]]; then
+    source /cvmfs/larsoft.opensciencegrid.org/spack-packages/setup-env.sh
+    export SAMPLE_PATH=$DATA_PATH/sample_list/sbndgpvm/
+    export SBND_DATA_PATH=/cvmfs/sbnd.opensciencegrid.org/products/sbnd/sbnd_data/
+    #export SBNDDATA_VERSION=v01_28_00
+    export SBNDDATA_VERSION=v01_35_00
+
+    export SBND_YZCORR_PATH=/cvmfs/sbnd.opensciencegrid.org/products/sbnd/sbnd_data/v01_35_00/YZmaps/
+fi
+
+if [[ `hostname` == *"jupyter"* ]]
 then
     source /cvmfs/larsoft.opensciencegrid.org/spack-packages/setup-env.sh
     export SAMPLE_PATH=$DATA_PATH/sample_list/sbndgpvm/
+    export SBND_DATA_PATH=/cvmfs/sbnd.opensciencegrid.org/products/sbnd/sbnd_data/
+    #export SBNDDATA_VERSION=v01_28_00
+    export SBNDDATA_VERSION=v01_35_00
+
+    export SBND_YZCORR_PATH=/exp/sbnd/data/users/sungbino/sbnd_corr/yzcorr/
+    export SBND_YZCORR_VERSION=202506
 fi
 
 if [[ `hostname` == *"dune-gpu01"* ]]

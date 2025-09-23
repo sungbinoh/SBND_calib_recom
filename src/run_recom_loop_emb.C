@@ -7,9 +7,14 @@
 #include "mylib.h"
 #include "Math/Vector3D.h"
 #include "BetheBloch.h"
+#include "SCECorr.h"
+#include "YZCorr.h"
 
 bool isdata = false;
 BetheBloch *muon_BB = new BetheBloch(13);
+SCECorr *sce_corr_mc = new SCECorr(false);
+YZCorr *yz_corr = new YZCorr();
+double lifetime = 100.; // mc default
 
 double dqdx_scale_correction_angle(double theta){
 
@@ -103,7 +108,10 @@ void Fill_hit_plots(TString suffix, const TTreeReaderArray<float>& rr, const TTr
   }
 }
 
-void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr, const TTreeReaderArray<float>& dqdx, const TTreeReaderArray<float>& sp_x, const TTreeReaderArray<float>& sp_z, const TTreeReaderArray<float>& pitch, double last_x, double cos_plus_zprimex, double cos_minus_zprimex, double theta_trk_x, TString theta_trk_x_str, bool do_ind_ang_cut = false){
+void Fill_corrected_dqdx_plots(TString suffix, int plane, const TTreeReaderArray<float>& rr, const TTreeReaderArray<float>& dqdx,
+			       const TTreeReaderArray<float>& sp_x, const TTreeReaderArray<float>& sp_y, const TTreeReaderArray<float>& sp_z,
+			       const TTreeReaderArray<float> &dirx, const TTreeReaderArray<float> &diry, const TTreeReaderArray<float> &dirz,
+			       const TTreeReaderArray<float>& pitch, double last_x, double cos_plus_zprimex, double cos_minus_zprimex, double theta_trk_x, TString theta_trk_x_str, bool do_ind_ang_cut = false){
   // == Fill plots for recombination fits
   if(dqdx.GetSize() < 1) return;
   for (unsigned i = 1; i < dqdx.GetSize() - 1; i++) { // == Not using first and last hits of a track
@@ -119,23 +127,42 @@ void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr
       }
     }
 
-    double this_lifetime_corr = Lifetime_Correction(sp_x[i], 100.0);
-    if(isdata) this_lifetime_corr = 1.; // == FIXME, for data, do not apply lifetime correction. Should be updated in future to use different lifetime values for MC and data
-    double corrected_dqdx = dqdx[i] * this_lifetime_corr;
-    double this_dqdx_bias_corr = dqdx_scale_correction_angle(theta_trk_x);
-    //cout << "corrected_dqdx: " << corrected_dqdx << endl;
-    corrected_dqdx *= this_dqdx_bias_corr;
-    //cout << "bias corrected_dqdx: " << corrected_dqdx << endl;
-
-    FillHist("rr_vs_corr_dqdx_" + suffix, rr[i], corrected_dqdx, 1., 300., 0., 300., 5000., 0., 5000.);
-    FillHist("rr_vs_pitch_" + suffix, rr[i], pitch[i], 1., 300., 0., 300., 200., 0., 2.);
-    FillHist("pitch_" + suffix, pitch[i], 1., 200., 0., 2.);
-    FillHist("pitch_x_vs_corr_dqdx_" + suffix, pitch[i], corrected_dqdx, 1., 200., 0., 2., 3000., 0., 3000.);
-    if(i == 0) FillHist("last_x_" + suffix, last_x, 1., 500., -250., 250.);
-
+    // cut bad hits
     if(pitch[i] > 1.) continue;
     if(rr[i] < 0.) continue;
+
+    // sce corr
+    XYZVector sp_sce_uncorr(sp_x[i], sp_y[i], sp_z[i]);
+    XYZVector sp_sce_corr = sce_corr_mc -> WireToTrajectoryPosition(sp_sce_uncorr);
+    double pitch_sce_uncorr = sce_corr_mc -> meas_pitch(sp_x[i], sp_y[i], sp_z[i], dirx[i], diry[i], dirz[i], plane, false);
+    double pitch_sce_corr = sce_corr_mc -> meas_pitch(sp_x[i], sp_y[i], sp_z[i], dirx[i], diry[i], dirz[i], plane, true);
+    double dqdx_sce_corr = dqdx[i] * pitch_sce_uncorr / pitch_sce_corr;
+
+    // yz unif corr
+    //double dqdx_yz_corr =  dqdx_sce_corr * yz_corr -> GetYZCorr(sp_sce_corr, plane); // FIXME
+    double dqdx_yz_corr =  dqdx_sce_corr / yz_corr -> GetYZCorr(sp_sce_corr, plane);
+
+    // e-lifetime corr
+    double this_lifetime_corr = Lifetime_Correction(sp_x[i], lifetime);
+    double this_lifetime_corr_east = Lifetime_Correction(sp_x[i], 44.5);
+    double this_lifetime_corr_west = Lifetime_Correction(sp_x[i], 33.8);
+    double dqdx_lifetime_corr = dqdx_yz_corr * this_lifetime_corr;
+
+    // dqdx final
+    double dqdx_all_corr = dqdx_lifetime_corr;
     
+    // trk angle dqdx reco bias corr: NOT APPLIED
+    //double this_dqdx_bias_corr = dqdx_scale_correction_angle(theta_trk_x);
+    //this_dqdx_bias_corr = 1.; // == no correction
+    //double dqdx_bias_corr = dqdx_all_corr * this_dqdx_bias_corr;
+    
+    FillHist("rr_vs_lifetime_corr_dqdx_" + suffix, rr[i], dqdx_all_corr, 1., 300., 0., 300., 5000., 0., 5000.);
+    FillHist("rr_vs_pitch_" + suffix, rr[i], pitch[i], 1., 300., 0., 300., 200., 0., 2.);
+    FillHist("pitch_" + suffix, pitch[i], 1., 200., 0., 2.);
+    FillHist("pitch_x_vs_lifetime_corr_dqdx_" + suffix, pitch[i], dqdx_all_corr, 1., 200., 0., 2., 3000., 0., 3000.);
+
+    if(i == 0) FillHist("last_x_" + suffix, last_x, 1., 500., -250., 250.);
+
     double this_KE= muon_BB -> KEFromRangeSpline(rr[i]); // == from rr
 
     double gamma = (this_KE/mass_muon)+1.0;
@@ -148,37 +175,92 @@ void Fill_corrected_dqdx_plots(TString suffix, const TTreeReaderArray<float>& rr
     TF1 * this_dEdx_PDF = muon_BB -> dEdx_PDF(this_KE, pitch[i]);
     double this_dEdx_MPV = this_dEdx_PDF -> GetMaximumX();
     delete this_dEdx_PDF;
-    
-    FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix, this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
-    FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_phi" + theta_trk_x_str, this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
-    //cout << "[Fill_corrected_dqdx_plots] " << i << ", rr : " << rr[i] << ", KE : " << muon_sp_range_to_KE -> Eval(rr[i]) << ", this_kappa : " << this_kappa << ", this_dEdx_MPV : " << this_dEdx_MPV << endl;
+
+    FillHist("dEdx_MPV_vs_uncorr_dqdx_" + suffix, this_dEdx_MPV, dqdx[i], 1., 3000., 0., 30., 3000., 0., 3000.);
+    FillHist("dEdx_MPV_vs_uncorr_dqdx_" + suffix + "_phi" + theta_trk_x_str, this_dEdx_MPV, dqdx[i], 1., 3000., 0., 30., 3000., 0., 3000.);
+
+    FillHist("dEdx_MPV_vs_sce_corr_dqdx_" + suffix, this_dEdx_MPV, dqdx_sce_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
+    FillHist("dEdx_MPV_vs_sce_corr_dqdx_" + suffix + "_phi" + theta_trk_x_str, this_dEdx_MPV, dqdx_sce_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
+
+    FillHist("dEdx_MPV_vs_yz_n_lifetime_corr_dqdx_" + suffix, this_dEdx_MPV, dqdx_all_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
+    FillHist("dEdx_MPV_vs_yz_n_lifetime_corr_dqdx_" + suffix + "_phi" + theta_trk_x_str, this_dEdx_MPV, dqdx_all_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
 
     // == Divide into NE, NW, SE and SW
     if(sp_x[i] < 0.){
-      if(sp_z[i] > 250.) FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_NE", this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
-      else FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_SE", this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
+      FillHist("dEdx_MPV_vs_east_only_lifetime_corr_dqdx_" + suffix, this_dEdx_MPV, dqdx_sce_corr * this_lifetime_corr_east, 1., 3000., 0., 30., 3000., 0., 3000.);
+      FillHist("dEdx_MPV_vs_east_only_lifetime_corr_dqdx_" + suffix + "_phi" + theta_trk_x_str, this_dEdx_MPV, dqdx_sce_corr * this_lifetime_corr_east, 1., 3000., 0., 30., 3000., 0., 3000.);
+
+      if(sp_z[i] > 250.) FillHist("dEdx_MPV_vs_yz_n_lifetime_corr_dqdx_" + suffix + "_NE", this_dEdx_MPV, dqdx_all_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
+      else FillHist("dEdx_MPV_vs_yz_n_lifetime_corr_dqdx_" + suffix + "_SE", this_dEdx_MPV, dqdx_all_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
     }
     else{
-      if(sp_z[i] > 250.) FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_NW", this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
-      else FillHist("dEdx_MPV_vs_corr_dqdx_" + suffix + "_SW", this_dEdx_MPV, corrected_dqdx, 1., 3000., 0., 30., 3000., 0., 3000.);
+      FillHist("dEdx_MPV_vs_west_only_lifetime_corr_dqdx_" + suffix, this_dEdx_MPV, dqdx_sce_corr * this_lifetime_corr_west, 1., 3000., 0., 30., 3000., 0., 3000.);
+      FillHist("dEdx_MPV_vs_west_only_lifetime_corr_dqdx_" + suffix + "_phi" + theta_trk_x_str, this_dEdx_MPV, dqdx_sce_corr * this_lifetime_corr_west, 1., 3000., 0., 30., 3000., 0., 3000.);
+
+      if(sp_z[i] > 250.) FillHist("dEdx_MPV_vs_yz_n_lifetime_corr_dqdx_" + suffix + "_NW", this_dEdx_MPV, dqdx_all_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
+      else FillHist("dEdx_MPV_vs_yz_n_lifetime_corr_dqdx_" + suffix + "_SW", this_dEdx_MPV, dqdx_all_corr, 1., 3000., 0., 30., 3000., 0., 3000.);
     }
   }
 }
 
-void run_recom_loop_emb(int run_number = 0) {
+void Fill_true_hit_plots(TString suffix, const TTreeReaderArray<float>& true_rr, const TTreeReaderArray<float>& true_nelec, const TTreeReaderArray<float>& true_pitch){
 
-  TString run_number_str = "";
-  run_number_str = TString::Format("%d", run_number);
-  if(run_number > 0){
-    isdata = true;
+  if(true_rr.GetSize() < 1) return;
+
+  for (unsigned i = 1; i < true_rr.GetSize() - 1; i++) {
+    double this_rr = true_rr[i];
+    double this_pitch = true_pitch[i];
+    if(this_rr < 0. || this_pitch < 0.) continue;
+    double this_dqdx = true_nelec[i] / this_pitch;
+    this_dqdx = this_dqdx / (1000.);
+    //cout << "rr: " << this_rr << ", true_pitch: " << this_pitch << ", true_nelec: " << true_nelec[i] << ", this_dqdx: " << this_dqdx << endl;
+    FillHist("true_rr_vs_true_dqdx_" + suffix, this_rr, this_dqdx, 1., 300., 0., 300., 5000., 0., 500.);
+    
   }
-  
-  /////////////////////////////////
-  // == Define histograms
-  /////////////////////////////////
-  // == Histograms for overal events
-  TH1F *hist_selected = new TH1F("selected", "selected", 3., -0.5, 2.5);
+}
 
+void Fill_charge_reco_res_plots(TString suffix, const TTreeReaderArray<float>& dq, const TTreeReaderArray<float>& width, const TTreeReaderArray<float>& dele, const TTreeReaderArray<float>& rr, TString theta_zx_str){
+
+  if(dq.GetSize() < 1) return;
+
+  for (unsigned i = 1; i < dq.GetSize() - 1; i++) {
+    if(rr[i] < 0.) continue;
+    double this_dq = dq[i];
+    double this_c_cal = 2.019e-2;
+    double this_qd_corr = dq[i] / this_c_cal;
+
+    double this_dele = dele[i];
+    this_dele = this_dele * 0.02;
+    double this_bias = (this_dq - this_dele) / this_dele;
+    double this_bias_corr = (this_qd_corr - (this_dele / 0.02)) / (this_dele / 0.02);
+
+    double this_rr = rr[i];
+    FillHist("rr_vs_dqres_" + suffix, this_rr, this_bias, 1., 300., 0., 300., 2000., -10., 10.);
+    FillHist("rr_vs_truedq_" + suffix, this_rr, this_dele, 1., 300., 0., 300., 5000., 0., 5000.);
+    FillHist("rr_vs_dqres_" + suffix + "_phi" + theta_zx_str, this_rr, this_bias, 1., 300., 0., 300., 2000., -10., 10.);
+    FillHist("rr_vs_truedq_" + suffix + "_phi" + theta_zx_str, this_rr, this_dele, 1., 300., 0., 300., 5000., 0., 5000.);
+
+    FillHist("rr_vs_dqres_corr_" + suffix, this_rr, this_bias_corr, 1., 300., 0., 300., 2000., -10., 10.);
+    FillHist("rr_vs_dqres_corr_" + suffix + "_phi" + theta_zx_str, this_rr, this_bias_corr, 1., 300., 0., 300., 2000., -10., 10.);
+
+    double this_width = width[i];
+    //cout << "this_width: " << this_width << endl;
+    FillHist("rr_vs_width_" + suffix, this_rr, this_width, 1., 300., 0., 300., 1000., 0., 10.);
+  }
+}
+
+void run_recom_loop_emb(TString list_file, TString out_suffix, bool IsData = false) {
+
+  sce_corr_mc -> ReadHistograms();
+  isdata = IsData;
+  if(isdata) lifetime = 35.;
+  cout << "lifetime: " << lifetime << endl;
+
+  TString yz_corr_f = "yz_correction_map_data1e20.root";
+  if(!isdata) yz_corr_f = "yz_correction_map_mcp2025b5e18.root";
+  yz_corr -> SetFileStr(yz_corr_f);
+  yz_corr -> ReadHistograms();
+  
   /////////////////////////////////
   // == Call Trees
   /////////////////////////////////
@@ -188,9 +270,7 @@ void run_recom_loop_emb(int run_number = 0) {
   TString sample_list_dir = getenv("SAMPLE_PATH");
   TString sample_list_label = getenv("FILELIST_LABEL");
 
-  TString fileListPath = sample_list_dir + "/list" + sample_list_label + run_number_str + ".txt";
-  if(!isdata) fileListPath = sample_list_dir + "/list_2024B_MC_calib_ntuple.txt";
-  //if(!isdata) fileListPath = sample_list_dir + "/list_2025A_Sprint25Dev_MC_bnbcosmics_calib_ntuple.txt";
+  TString fileListPath = sample_list_dir + "/" + list_file;
   cout << "Opening : " << fileListPath << endl;
   // Check if the file exists
   std::ifstream file(fileListPath.Data());  // Convert TString to const char*
@@ -215,6 +295,11 @@ void run_recom_loop_emb(int run_number = 0) {
   TTreeReaderArray<float> dqdx0(myReader, "trk.hits0.dqdx"); // hits on plane 0 (Induction)
   TTreeReaderArray<float> dqdx1(myReader, "trk.hits1.dqdx"); // hits on plane 1 (Induction)
   TTreeReaderArray<float> dqdx2(myReader, "trk.hits2.dqdx"); // hits on plane 2 (Collection)
+  TTreeReaderArray<float> dq2(myReader, "trk.hits2.h.integral");
+  TTreeReaderArray<float> width2(myReader, "trk.hits2.h.width");
+
+  TTreeReaderArray<float> dele2(myReader, "trk.hits2.h.truth.nelec");
+  
   TTreeReaderArray<float> rr0(myReader, "trk.hits0.rr");
   TTreeReaderArray<float> rr1(myReader, "trk.hits1.rr");
   TTreeReaderArray<float> rr2(myReader, "trk.hits2.rr");
@@ -236,6 +321,15 @@ void run_recom_loop_emb(int run_number = 0) {
   TTreeReaderArray<float> dir_x(myReader, "trk.dir.x"); 
   TTreeReaderArray<float> dir_y(myReader, "trk.dir.y");
   TTreeReaderArray<float> dir_z(myReader, "trk.dir.z");
+  TTreeReaderArray<float> dirx0(myReader, "trk.hits0.dir.x");
+  TTreeReaderArray<float> diry0(myReader, "trk.hits0.dir.y");
+  TTreeReaderArray<float> dirz0(myReader, "trk.hits0.dir.z");
+  TTreeReaderArray<float> dirx1(myReader, "trk.hits1.dir.x");
+  TTreeReaderArray<float> diry1(myReader, "trk.hits1.dir.y");
+  TTreeReaderArray<float> dirz1(myReader, "trk.hits1.dir.z");
+  TTreeReaderArray<float> dirx2(myReader, "trk.hits2.dir.x");
+  TTreeReaderArray<float> diry2(myReader, "trk.hits2.dir.y");
+  TTreeReaderArray<float> dirz2(myReader, "trk.hits2.dir.z");
 
   TTreeReaderArray<float> true_start_x(myReader, "trk.truth.p.start.x");
   TTreeReaderArray<float> true_start_y(myReader, "trk.truth.p.start.y");
@@ -244,9 +338,11 @@ void run_recom_loop_emb(int run_number = 0) {
   TTreeReaderArray<float> true_end_y(myReader, "trk.truth.p.end.y");
   TTreeReaderArray<float> true_end_z(myReader, "trk.truth.p.end.z");
   TTreeReaderArray<int> true_end_process(myReader, "trk.truth.p.end_process");
+  TTreeReaderArray<float> true_hit_rr(myReader, "trk.truth.p.truehits2.rr");
+  TTreeReaderArray<float> true_hit_nelec(myReader, "trk.truth.p.truehits2.nelec");
+  TTreeReaderArray<float> true_hit_pitch(myReader, "trk.truth.p.truehits2.pitch");
   TTreeReaderArray<float> true_hit_time(myReader, "trk.truth.p.truehits2.time");
   TTreeReaderArray<float> true_hit_tdrift(myReader, "trk.truth.p.truehits2.tdrift");
-
 
   /////////////////////////////////
   // == Loop for tracks
@@ -259,7 +355,7 @@ void run_recom_loop_emb(int run_number = 0) {
   int _run_to = 300000;
   //_run_to = 1000;
   while (myReader.Next()) {
-    if(current_entry > _run_to) break;
+    //if(current_entry > _run_to) break;
    
     if(current_entry%100 == 0){
       cout << current_entry << " / " << N_entries << endl;
@@ -319,6 +415,11 @@ void run_recom_loop_emb(int run_number = 0) {
       double sin_theta_trk_x = sqrt(trk_cross_x.Mag2()) / sqrt(track_vec.Mag2());
       double theta_trk_x = TMath::ASin(sin_theta_trk_x) * 180. / TMath::Pi(); // == [Deg.]
       TString theta_trk_x_str = Get_theta_trk_x_bin_str(theta_trk_x);
+
+      double sin_zx = fabs(track_vec.Z() / (sqrt(pow(track_vec.X(), 2.) + pow(track_vec.Z(), 2.))));
+      double theta_zx = TMath::ASin(sin_zx) * 180. / TMath::Pi(); // == [Deg.]
+      TString theta_zx_str = Get_theta_trk_x_bin_str(theta_zx);
+      
       //cout << "theta_trk_x : " << theta_trk_x << ", theta_trk_x_str : " << theta_trk_x_str << endl;
       
       if(first_x * last_x < 0.) passing_cathode= true;
@@ -357,6 +458,10 @@ void run_recom_loop_emb(int run_number = 0) {
       // == Track length 60 cm cut
       if(this_reco_trk_len < 60. || !passing_cathode) continue;
 
+      Fill_hit_plots("plane0_trklen_60cm_passing_cathode", rr0, dqdx0, sp_x0, cos_xy, cos_yz, cos_zx, cos_plus_zprimex, cos_minus_zprimex);
+      Fill_hit_plots("plane1_trklen_60cm_passing_cathode", rr1, dqdx1, sp_x1, cos_xy, cos_yz, cos_zx, cos_plus_zprimex, cos_minus_zprimex);
+      Fill_hit_plots("plane2_trklen_60cm_passing_cathode", rr2, dqdx2, sp_x2, cos_xy, cos_yz, cos_zx, cos_plus_zprimex, cos_minus_zprimex);
+
       // == These are for checking impact of event selections
       /*
       Fill_track_plots("plane0_trklen_60cm_passing_cathode", dist_start, dist_end, rr0, dqdx0);
@@ -372,12 +477,14 @@ void run_recom_loop_emb(int run_number = 0) {
       */
 
       // == These are the main plots
-      Fill_corrected_dqdx_plots("plane0_trklen_60cm_passing_cathode_coszx", rr0, dqdx0, sp_x0, sp_z0, pitch0, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x, theta_trk_x_str, true);
-      Fill_corrected_dqdx_plots("plane1_trklen_60cm_passing_cathode_coszx", rr1, dqdx1, sp_x1, sp_z1, pitch1, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x, theta_trk_x_str, true);
+      Fill_corrected_dqdx_plots("plane0_trklen_60cm_passing_cathode_coszx", 0, rr0, dqdx0, sp_x0, sp_y0, sp_z0, dirx0, diry0, dirz0, pitch0, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x, theta_trk_x_str, true);
+      Fill_corrected_dqdx_plots("plane1_trklen_60cm_passing_cathode_coszx", 1, rr1, dqdx1, sp_x1, sp_y1, sp_z1, dirx1, diry1, dirz1, pitch1, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x, theta_trk_x_str, true);
       if(fabs(cos_zx) < 0.75){
 	Fill_track_plots("trklen_60cm_passing_cathode_coszx", dist_start, dist_end, rr2, dqdx2);
 	FillHist("theta_trk_x_str_trklen_60cm_passing_cathode_coszx", theta_trk_x, 1., 100., 0., 100.);
-        Fill_corrected_dqdx_plots("plane2_trklen_60cm_passing_cathode_coszx", rr2, dqdx2, sp_x2, sp_z2, pitch2, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x, theta_trk_x_str, true);
+        Fill_corrected_dqdx_plots("plane2_trklen_60cm_passing_cathode_coszx", 2, rr2, dqdx2, sp_x2, sp_y2, sp_z2, dirx2, diry2, dirz2, pitch2, last_x, cos_plus_zprimex, cos_minus_zprimex, theta_trk_x, theta_trk_x_str, true);
+	Fill_true_hit_plots("plane2_trklen_60cm_passing_cathode_coszx", true_hit_rr, true_hit_nelec, true_hit_pitch);
+	Fill_charge_reco_res_plots("plane2_trklen_60cm_passing_cathode_coszx", dq2, width2, dele2, rr2, theta_zx_str);
       }
       
       // == Bellow are for plot approvals
@@ -402,15 +509,10 @@ void run_recom_loop_emb(int run_number = 0) {
     }
   }
 
-
   TString output_rootfile_dir = getenv("OUTPUTROOT_PATH");
-  TString output_file_name = output_rootfile_dir + "/output_recom_loop_emb_run_" + run_number_str + ".root";
-  //if(!isdata) output_file_name = output_rootfile_dir + "/output_recom_loop_emb_mc_2025a_spring.root";
-  if(!isdata) output_file_name = output_rootfile_dir + "/output_recom_loop_emb_mc_2024b.root";
+  TString output_file_name = output_rootfile_dir + "/output_recom_loop_emb_" + out_suffix + ".root";
   out_rootfile = new TFile(output_file_name, "RECREATE");
   out_rootfile -> cd();
-  
-  hist_selected -> Write();
   WriteHist();
 
   out_rootfile -> Close();

@@ -36,17 +36,14 @@ ls -alh
 
 echo "@@ source setup.sh"
 source setup.sh
-export SBND_YZCORR_PATH=${filesFromSender}/
 spack find ifdhc
 #spack load ifdhc@2.8.0 arch=linux-almalinux9-x86_64_v3
 #spack load ifdhc@2.7.2
 spack load ifdhc@2.6.20
 
-spack find root
-
 echo "@@ run"
-#root -l -b -q "run_lifetime_loop.C(\"input_list_${nProcess}.txt\", \"${nProcess}\", false)" &> log_${nProcess}.log
-root -l -b -q "run_lifetime_loop.C(\"input_list_${nProcess}.txt\", \"${nProcess}\", true)"  &> log_${nProcess}.log
+root -l -b -q "run_lifetime_loop.C(\"input_list_${nProcess}.txt\", \"${nProcess}\", true)" &> log_${nProcess}.log
+#root -l -b -q 'run_lifetime_loop.C("input_list_${nProcess}.txt", "${nProcess}", true)' > log_${nProcess}.log
 ls -alh
 
 echo "@@ setup IFDH_CP_MAXRETRIES to 2"

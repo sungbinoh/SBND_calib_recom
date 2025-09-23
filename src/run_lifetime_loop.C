@@ -14,7 +14,7 @@ YZCorr *yz_corr = new YZCorr();
 recom *recom_fns = new recom();
 bool isdata = false;
 
-//int nGroupedWires = 10;
+int nGroupedWires_set = 1;
 int NBinsX = 100;
 int NBinsT = 100;
 int NBinsdQdx = 300;
@@ -449,14 +449,14 @@ void run_lifetime_loop(TString list_file, TString out_suffix, bool IsData = fals
 	// -- cos vals: cosyz, coszx, coszx+, coszx-
 	double cos_vals_0[4];
         get_cos_vals(sp_x0, sp_y0, sp_z0, rr0, cos_vals_0);
-	fill_lifetime_hists(10, 0, sp_x0, sp_y0, sp_z0, dirx0, diry0, dirz0, wire0, dqdx0, time0, *trk_t0);
+	fill_lifetime_hists(nGroupedWires_set, 0, sp_x0, sp_y0, sp_z0, dirx0, diry0, dirz0, wire0, dqdx0, time0, *trk_t0);
       }
 
       if(evt_sel(sp_x1, sp_y1, sp_z1, rr1, dqdx1)){
         // -- cos vals: cosyz, coszx, coszx+, coszx-
         double cos_vals_1[4];
         get_cos_vals(sp_x1, sp_y1, sp_z1, rr1, cos_vals_1);
-        fill_lifetime_hists(10, 1, sp_x1, sp_y1, sp_z1, dirx1, diry1, dirz1, wire1, dqdx1, time1, *trk_t0);
+        fill_lifetime_hists(nGroupedWires_set, 1, sp_x1, sp_y1, sp_z1, dirx1, diry1, dirz1, wire1, dqdx1, time1, *trk_t0);
       }
 
       if(evt_sel(sp_x2, sp_y2, sp_z2, rr2, dqdx2)){
@@ -465,7 +465,7 @@ void run_lifetime_loop(TString list_file, TString out_suffix, bool IsData = fals
         get_cos_vals(sp_x2, sp_y2, sp_z2, rr2, cos_vals_2);
 
 	if(fabs(cos_vals_2[1]) < 0.75){
-	  fill_lifetime_hists(10, 2, sp_x2, sp_y2, sp_z2, dirx2, diry2, dirz2, wire2, dqdx2, time2, *trk_t0);
+	  fill_lifetime_hists(nGroupedWires_set, 2, sp_x2, sp_y2, sp_z2, dirx2, diry2, dirz2, wire2, dqdx2, time2, *trk_t0);
 	}
       }
     }

@@ -139,7 +139,8 @@ void Fill_corrected_dqdx_plots(TString suffix, int plane, const TTreeReaderArray
     double dqdx_sce_corr = dqdx[i] * pitch_sce_uncorr / pitch_sce_corr;
 
     // yz unif corr
-    double dqdx_yz_corr =  dqdx_sce_corr * yz_corr -> GetYZCorr(sp_sce_corr, plane);
+    //double dqdx_yz_corr =  dqdx_sce_corr * yz_corr -> GetYZCorr(sp_sce_corr, plane); // FIXME
+    double dqdx_yz_corr =  dqdx_sce_corr / yz_corr -> GetYZCorr(sp_sce_corr, plane);
 
     // e-lifetime corr
     double this_lifetime_corr = Lifetime_Correction(sp_x[i], lifetime);

@@ -28,7 +28,7 @@ ls -alh ./data/sample_list/sbndgpvm/
 cp ${filesFromSender}/setup.sh .
 cp -r ${filesFromSender}/bin .
 cp -r ${filesFromSender}/include .
-cp -r ${filesFromSender}/run_lifetime_loop.C .
+cp -r ${filesFromSender}/run_recom_loop_emb.C .
 
 echo "@@ make output/root"
 mkdir -p output/root
@@ -45,8 +45,7 @@ spack load ifdhc@2.6.20
 spack find root
 
 echo "@@ run"
-#root -l -b -q "run_lifetime_loop.C(\"input_list_${nProcess}.txt\", \"${nProcess}\", false)" &> log_${nProcess}.log
-root -l -b -q "run_lifetime_loop.C(\"input_list_${nProcess}.txt\", \"${nProcess}\", true)"  &> log_${nProcess}.log
+root -l -b -q "run_recom_loop_emb.C(\"input_list_${nProcess}.txt\", \"${nProcess}\", true)" &> log_${nProcess}.log
 ls -alh
 
 echo "@@ setup IFDH_CP_MAXRETRIES to 2"
@@ -56,10 +55,10 @@ echo "@@ outDir : "${outDir}
 echo "@@ ifdh  mkdir_p "${outDir}
 ifdh  mkdir_p ${outDir}
 
-outFILE=${thisOutputCreationDir}/output/root/output_lifetime_${nProcess}.root
+outFILE=${thisOutputCreationDir}/output/root/output_recom_loop_emb_${nProcess}.root
 if [ -f "$outFILE" ]; then
-  echo "ifdh cp ${thisOutputCreationDir}/output/root/output_lifetime_${nProcess}.root ${outDir}/${DFPREFIX}_${nProcess}.root"
-  ifdh cp ${thisOutputCreationDir}/output/root/output_lifetime_${nProcess}.root ${outDir}/${DFPREFIX}_${nProcess}.root
+  echo "ifdh cp ${thisOutputCreationDir}/output/root/output_recom_loop_emb_${nProcess}.root ${outDir}/${DFPREFIX}_${nProcess}.root"
+  ifdh cp ${thisOutputCreationDir}/output/root/output_recom_loop_emb_${nProcess}.root ${outDir}/${DFPREFIX}_${nProcess}.root
   echo "ifdh cp ${thisOutputCreationDir}/log_${nProcess}.log ${outDir}/log_${nProcess}.log"
   ifdh cp ${thisOutputCreationDir}/log_${nProcess}.log ${outDir}/log_${nProcess}.log
   echo "@@ Done!"

@@ -50,9 +50,9 @@ if [[ `hostname` == *"sbnd"* || `hostname` == *"$USER"* ]]; then
     export SAMPLE_PATH=$DATA_PATH/sample_list/sbndgpvm/
     export SBND_DATA_PATH=/cvmfs/sbnd.opensciencegrid.org/products/sbnd/sbnd_data/
     #export SBNDDATA_VERSION=v01_28_00
-    export SBNDDATA_VERSION=v01_30_00
+    export SBNDDATA_VERSION=v01_35_00
 
-    export SBND_YZCORR_PATH=/exp/sbnd/app/users/yadav/Calibration/sbndcode_v10_06_01/sbnd_data/v01_33_00/YZmaps/
+    export SBND_YZCORR_PATH=/cvmfs/sbnd.opensciencegrid.org/products/sbnd/sbnd_data/v01_35_00/YZmaps/
 fi
 
 if [[ `hostname` == *"jupyter"* ]]
@@ -61,7 +61,7 @@ then
     export SAMPLE_PATH=$DATA_PATH/sample_list/sbndgpvm/
     export SBND_DATA_PATH=/cvmfs/sbnd.opensciencegrid.org/products/sbnd/sbnd_data/
     #export SBNDDATA_VERSION=v01_28_00
-    export SBNDDATA_VERSION=v01_30_00
+    export SBNDDATA_VERSION=v01_35_00
 
     export SBND_YZCORR_PATH=/exp/sbnd/data/users/sungbino/sbnd_corr/yzcorr/
     export SBND_YZCORR_VERSION=202506

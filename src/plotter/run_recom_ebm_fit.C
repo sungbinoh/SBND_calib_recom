@@ -155,8 +155,13 @@ void Write_1D_hist(TH1D *in, TString outname, TString suffix, TString particle, 
   latex_method.DrawLatex(0.18, 0.87, latex_str);
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  TString outfile_str = output_plot_dir + "/MC_2024B_CV/recom/" + outname + ".pdf";
-  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/emb/langau_fits/" + outname + ".pdf";
+  TString outfile_str = output_plot_dir + "/recom/" + run_str + "/emb/langau_fits/" + outname + ".pdf";
+  TString outfile_dir = gSystem->DirName(outfile_str);
+  if (gSystem->AccessPathName(outfile_dir)) {
+    std::cout << "Directory does not exist, creating: " << outfile_dir << std::endl;
+    gSystem->mkdir(outfile_dir, kTRUE);
+  }
+
   c -> SaveAs(outfile_str);
   c -> Close();
 
@@ -170,7 +175,7 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, double 
   TString histname = "dEdx_MPV_vs_corr_dqdx_" + plane + "_trklen_60cm_passing_cathode_coszx" + suffix;
   
   TString input_file_dir = getenv("OUTPUTROOT_PATH");
-  TFile *f = new TFile(input_file_dir + "/" + input_file_name);
+  TFile *f = new TFile(input_file_dir + "/recom/2025A/" + input_file_name);
   TH2D *hist_2D = (TH2D*)gDirectory -> Get(histname);
 
   //hist_2D -> Rebin(num_NbinsX, "RebinX", dEdx_MPV_binning);
@@ -312,8 +317,12 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, double 
   latex_method.DrawLatex(0.90, 0.96, particle_label_str);
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  TString outfile_str = output_plot_dir + "/MC_2024B_CV/recom/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
-  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/emb/c_cals/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
+  TString outfile_str = output_plot_dir + "/recom/" + run_str + "/emb/c_cals/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + ".pdf";
+  TString outfile_dir = gSystem->DirName(outfile_str);
+  if (gSystem->AccessPathName(outfile_dir)) {
+    std::cout << "Directory does not exist, creating: " << outfile_dir << std::endl;
+    gSystem->mkdir(outfile_dir, kTRUE);
+  }
   c -> SaveAs(outfile_str);
   
   c -> Close();
@@ -368,26 +377,39 @@ void fit_ebm(TString particle, TString plane, double dEdx_low, double dEdx_high)
   latex_method.DrawLatex(0.90, 0.96, particle_label_str);
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  TString outfile_str = output_plot_dir + "/MC_2024B_CV/recom/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + "_allphi.pdf";
-  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/emb/c_cals/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + "_allphi.pdf";
+  TString outfile_str = output_plot_dir + "/recom/" + run_str + "/emb/c_cals/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + "_allphi.pdf";
+  TString outfile_dir = gSystem->DirName(outfile_str);
+  if (gSystem->AccessPathName(outfile_dir)) {
+    std::cout << "Directory does not exist, creating: " << outfile_dir << std::endl;
+    gSystem->mkdir(outfile_dir, kTRUE);
+  }
   c -> SaveAs(outfile_str);
 
   c -> Close();  
 }
 
-void run_recom_ebm_fit(int run_num = 0){
+void run_recom_ebm_fit(TString filename, TString suffix){
 
-  if(run_num != 0){
-    isdata = true;
-    run_str = TString::Format("%d", run_num);
-  }
+  if(filename.Contains("data")) isdata = true;
+  run_str = suffix;
   
   setTDRStyle();
+
+  //int N_MPV_bins = 12;
+  int N_MPV_bins = 11; // == for 2025A, low stat at 3.5 - 4.0 bin
+  /*
   double dEdx_MPV_binning_muon[] = {0.,
 				    1.6, 1.7, 1.8, 1.9, 2.0,
 				    2.1, 2.3, 2.6, 3.0, 3.5,
 				    4.0,
 				    };
+  */
+  double dEdx_MPV_binning_muon[] = {0.,
+                                    1.6, 1.7, 1.8, 1.9, 2.0,
+                                    2.1, 2.3, 2.6, 3.0, 3.5,
+  }; // == for 2025A, low stat at 3.5 - 4.0 bin
+
+  
   int rebin_dqdx_muon[] = {0,
 			   2, 2, 5, 5, 5,
 			   5, 5, 10, 10, 10,
@@ -407,25 +429,19 @@ void run_recom_ebm_fit(int run_num = 0){
 			     4, 4, 4, 4, 4,
 			     4, 4, 4, 4, 4};
 
-  TString filename = "output_recom_loop_emb_run_" + run_str + ".root";
-  if(!isdata){
-    filename = "output_recom_2024B_GENIE_CV.root";
-    run_str = "MC";
-  }
-
   TString suffixes[] = {"", "_phi40to50", "_phi50to60", "_phi60to70", "_phi70to80", "_phi80to85", "_phi85to90"};
   //TString suffixes[] = {"", "_phi50to60", "_phi60to70", "_phi70to80", "_phi80to85", "_phi85to90"};
   double phis[] = {65., 45., 55., 65., 75., 82.5, 87.5};
   for(int i = 0; i < 7; i++){
     TString this_suffix = suffixes[i];
-    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, phis[i], "plane0", 2.07712, "muon", 10, 1.5, 2.1, dEdx_MPV_binning_muon, 12, rebin_dqdx_muon);
-    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, phis[i], "plane1", 2.07178, "muon", 10, 1.5, 2.1, dEdx_MPV_binning_muon, 12, rebin_dqdx_muon);
-    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, phis[i], "plane2", 2.04785, "muon", 10, 1.5, 2.1, dEdx_MPV_binning_muon, 12, rebin_dqdx_muon);
+    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, phis[i], "plane0", 2.07712, "muon", 10, 1.5, 2.1, dEdx_MPV_binning_muon, N_MPV_bins, rebin_dqdx_muon);
+    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, phis[i], "plane1", 2.07178, "muon", 10, 1.5, 2.1, dEdx_MPV_binning_muon, N_MPV_bins, rebin_dqdx_muon);
+    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, phis[i], "plane2", 2.04785, "muon", 10, 1.5, 2.1, dEdx_MPV_binning_muon, N_MPV_bins, rebin_dqdx_muon);
   }
 
   cout << "[run_recom_ebm_fit] Writing output root file" << endl;
   TString output_file_dir = getenv("OUTPUTROOT_PATH");
-  TString out_root_name = output_file_dir + "/recom_ebm_fit/run_" + run_str + ".root";
+  TString out_root_name = output_file_dir + "/recom_fit_" + run_str + ".root";
   TFile *outfile = new TFile(out_root_name, "RECREATE");
   outfile -> cd();
 

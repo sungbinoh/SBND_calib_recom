@@ -9,7 +9,10 @@ TString image_type = "pdf";
 
 bool isdata = false;
 TString run_str = "";
+TString run_str_latex = "";
 //TString suffix = "";
+
+TString hist_prefix = "dEdx_MPV_vs_yz_n_lifetime_corr_dqdx_";
 
 TRandom3 gRan(1800);
 map<TString, vector<double>> fitting_results;
@@ -71,8 +74,8 @@ void Write_1D_hist(TH1D *in, TString outname, TString suffix, TString particle, 
     double max_x = in -> GetBinCenter(in -> GetMaximumBin());
     double bin_width = in -> GetBinWidth(1);
     Double_t fitting_range[2];
-    fitting_range[0] = 800.;
-    fitting_range[1] = 1700.;
+    fitting_range[0] = 500.;
+    fitting_range[1] = 3000.;
     Double_t sv[4], pllo[4], plhi[4], fp[4], fpe[4];
     sv[0] = 20.;
     sv[1] = max_x;
@@ -152,13 +155,12 @@ void Write_1D_hist(TH1D *in, TString outname, TString suffix, TString particle, 
   latex_Nhits.SetTextSize(0.06);
   latex_method.SetTextSize(0.06);
   if(isdata) latex_ProtoDUNE.DrawLatex(0.16, 0.96, "#font[62]{SBND Data} Run " + run_str);
-  else latex_ProtoDUNE.DrawLatex(0.16, 0.96, "#font[62]{SBND Simulation} #font[42]{#it{#scale[0.8]{Preliminary}}}");
+  else latex_ProtoDUNE.DrawLatex(0.16, 0.96, "#font[62]{SBND " + run_str_latex + "} #font[42]{#it{#scale[0.8]{Preliminary}}}");
   latex_particle.DrawLatex(0.95, 0.96, particle_label_str);
   latex_method.DrawLatex(0.18, 0.87, latex_str);
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  TString outfile_str = output_plot_dir + "/mc/emb/langau_fits/" + outname + "." + image_type;
-  if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/emb/langau_fits/" + outname + "." + image_type;
+  TString outfile_str = output_plot_dir + "/"+ run_str + "/emb/langau_fits/" + outname + "." + image_type;
 
   TString outfile_dir = gSystem->DirName(outfile_str);
   if (gSystem->AccessPathName(outfile_dir)) {
@@ -170,15 +172,25 @@ void Write_1D_hist(TH1D *in, TString outname, TString suffix, TString particle, 
 
 }
 
+double Get_mean_phi(TString input_file_name){
+
+  TString input_file_dir = getenv("OUTPUTROOT_PATH");
+  TFile *f = new TFile(input_file_dir + "/c_cal/" + input_file_name);
+  TH1D *theta_hist = (TH1D*)gDirectory -> Get("theta_trk_x_str_trklen_60cm_passing_cathode_coszx");
+
+  double mean = theta_hist -> GetMean();
+  return mean;
+}
+
 void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, double phi, TString plane, TString particle, int rebin_y, double dEdx_low, double dEdx_high, double dEdx_MPV_binning[], int num_NbinsX, int rebin_dqdx[]){
 
   //const Int_t num_NbinsX = sizeof(dEdx_MPV_binning) / sizeof(dEdx_MPV_binning[0]) - 1;
   
   TString this_id = "id";
-  TString histname = "dEdx_MPV_vs_corr_dqdx_" + plane + "_trklen_60cm_passing_cathode_coszx" + suffix;
+  TString histname = hist_prefix + plane + "_trklen_60cm_passing_cathode_coszx" + suffix;
   
   TString input_file_dir = getenv("OUTPUTROOT_PATH");
-  TFile *f = new TFile(input_file_dir + "/" + input_file_name);
+  TFile *f = new TFile(input_file_dir + "/c_cal/" + input_file_name);
   TH2D *hist_2D = (TH2D*)gDirectory -> Get(histname);
 
   //hist_2D -> Rebin(num_NbinsX, "RebinX", dEdx_MPV_binning);
@@ -244,7 +256,7 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, double 
     }
 
     Write_1D_hist(this_1D_X, "/" + plane + "_" + this_1D_X_hist_name, suffix, particle, dEdx_latex_str, plane, "dE/dx MPV [MeV/cm]", "Events", this_dEdx_MPV_low, this_dEdx_MPV_high, 1., false);
-    Write_1D_hist(this_1D_Y, "/" + plane + "_" + this_1D_Y_hist_name, suffix, particle, dEdx_latex_str, plane, "dQ/dx [ADC/cm]", "Events", 0., 5000., rebin_dqdx[i - 1], true);
+    Write_1D_hist(this_1D_Y, "/" + plane + "_" + this_1D_Y_hist_name, suffix, particle, dEdx_latex_str, plane, "dQ/dx [ADC/cm]", "Events", 0., 3000., rebin_dqdx[i - 1], true);
   }
 
   TCanvas *c = new TCanvas("", "", 1600, 1200);
@@ -318,12 +330,11 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, double 
   latex_method.SetTextAlign(31);
   latex_SBND.SetTextSize(0.03);
   latex_method.SetTextSize(0.03);
-  if(isdata) latex_SBND.DrawLatex(0.16, 0.96, "#font[62]{SBND Data} Run " + run_str + ", " + plane);
-  else latex_SBND.DrawLatex(0.16, 0.96, "#font[62]{SBND Simulation} #font[42]{#it{#scale[0.8]{Preliminary}}}");
-  latex_method.DrawLatex(0.90, 0.96, particle_label_str);
+  latex_SBND.DrawLatex(0.16, 0.96, "#font[62]{SBND " + run_str_latex + "} #font[42]{#it{#scale[0.8]{Preliminary}}}");
+  //latex_method.DrawLatex(0.90, 0.96, particle_label_str);
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  TString outfile_str = output_plot_dir + "/mc/emb/c_cals/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + "." + image_type;
+  TString outfile_str = output_plot_dir + "/" + run_str + "/emb/c_cals/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + "." + image_type;
   if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/emb/c_cals/dEdx_MPV_vs_corr_dqdx_" + particle + "_" + plane + suffix + "." + image_type;
   
   TString outfile_dir = gSystem->DirName(outfile_str);
@@ -337,18 +348,30 @@ void Fit_dEdx_MPV_vs_dqdx_plots(TString input_file_name, TString suffix, double 
 
 }
 
-void run_calib_const_fit_ebm(int run_num = 0){
+void run_calib_const_fit_ebm(TString filename, TString _run_str, TString _run_str_latex){
+  // filename = output_recom_loop_emb_fixed_dev_data_bnb_light.root
+  // run_str = fixed_dev_data_bnb_light
+  // run_str_latex = Fixed Dev. Data BNB + Light
 
-  if(run_num != 0){
-    isdata = true;
-    run_str = TString::Format("%d", run_num);
-  }
+  run_str = _run_str;
+  run_str_latex = _run_str_latex;
+  cout << "run_str: " << run_str << endl;
+
   
   setTDRStyle();
+  int N_dEdx_MPV_binning_muon = 9;
   double dEdx_MPV_binning_muon[] = {0.,
 				    1.60, 1.62, 1.64, 1.66, 1.68,
-				    1.70, 1.8, 
+				    1.70, 1.74, 1.8, 
 				    };
+  /*
+  int N_dEdx_MPV_binning_muon = 8;
+  double dEdx_MPV_binning_muon[] = {0.,
+                                    1.60, 1.62, 1.64, 1.66, 1.68,
+                                    1.70, 1.8,
+                                    };
+  */
+
   int rebin_dqdx_muon[] = {2, 2, 2, 2, 2,
 			   2,
   };
@@ -365,20 +388,18 @@ void run_calib_const_fit_ebm(int run_num = 0){
 			     4, 4, 4, 4, 4,
 			     4, 4, 4, 4, 4,
 			     4, 4, 4, 4, 4};
+  hist_prefix = "dEdx_MPV_vs_yz_n_lifetime_corr_dqdx_";
 
-  TString filename = "output_recom_loop_emb_run_" + run_str + ".root";
-  if(!isdata){
-    filename = "output_recom_loop_emb_mc.root";
-    run_str = "MC";
-  }
-
+  double mean_theta = Get_mean_phi(filename);
+  cout << "mean_theta: " << mean_theta << endl;
+  
   TString suffixes[] = {"", "_phi40to50", "_phi50to60", "_phi60to70", "_phi70to80", "_phi80to85", "_phi85to90"};
-  double phis[] = {65., 45., 55., 65., 75., 82.5, 87.5};
+  double phis[] = {mean_theta, 45., 55., 65., 75., 82.5, 87.5};
   for(int i = 0; i < 7; i++){
     TString this_suffix = suffixes[i];
-    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, phis[i], "plane0", "muon", 5, 1.5, 2.0, dEdx_MPV_binning_muon, 8, rebin_dqdx_muon);
-    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, phis[i], "plane1", "muon", 5, 1.5, 2.0, dEdx_MPV_binning_muon, 8, rebin_dqdx_muon);
-    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, phis[i], "plane2", "muon", 5, 1.5, 2.0, dEdx_MPV_binning_muon, 8, rebin_dqdx_muon);
+    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, phis[i], "plane0", "muon", 5, 1.5, 2.0, dEdx_MPV_binning_muon, N_dEdx_MPV_binning_muon, rebin_dqdx_muon);
+    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, phis[i], "plane1", "muon", 5, 1.5, 2.0, dEdx_MPV_binning_muon, N_dEdx_MPV_binning_muon, rebin_dqdx_muon);
+    Fit_dEdx_MPV_vs_dqdx_plots(filename, this_suffix, phis[i], "plane2", "muon", 5, 1.5, 2.0, dEdx_MPV_binning_muon, N_dEdx_MPV_binning_muon, rebin_dqdx_muon);
   }
 
   vector<double> plane0_vec;
@@ -588,11 +609,11 @@ void run_calib_const_fit_ebm(int run_num = 0){
   latex_SBND.SetTextSize(0.03);
   latex_method.SetTextSize(0.03);
   if(isdata) latex_SBND.DrawLatex(0.12, 0.96, "#font[62]{SBND Data} Run " + run_str + " #font[42]{#it{#scale[1.0]{Preliminary}}}");
-  else latex_SBND.DrawLatex(0.12, 0.96, "#font[62]{SBND Simulation} #font[42]{#it{#scale[1.0]{Preliminary}}}");
-  latex_method.DrawLatex(0.93, 0.96, particle_label_str);
+  else latex_SBND.DrawLatex(0.12, 0.96, "#font[62]{SBND " + run_str_latex + "} #font[42]{#it{#scale[1.0]{Preliminary}}}");
+  //latex_method.DrawLatex(0.93, 0.96, particle_label_str);
 
   TString output_plot_dir = getenv("PLOT_PATH");
-  TString outfile_str = output_plot_dir + "/mc/emb/c_cals/c_cal_comp." + image_type;
+  TString outfile_str = output_plot_dir + "/" + run_str + "/emb/c_cals/c_cal_comp." + image_type;
   if(isdata) outfile_str = output_plot_dir + "/run_" + run_str + "/emb/c_cals/c_cal_comp." + image_type;
 
   TString outfile_dir = gSystem->DirName(outfile_str);

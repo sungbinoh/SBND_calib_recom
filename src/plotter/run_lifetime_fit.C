@@ -6,12 +6,12 @@
 TRandom3 gRan(1800);
 map<TString, vector<double>> fitting_results;
 
-void Fit_1D_plots(TString input_file_name, int rebin_x, int rebin_y, double tdrift_low, double tdrift_high, TString this_id, TString suffix, bool fit_bkg = false){
+void Fit_1D_plots(TString input_file_name, int rebin_x, int rebin_y, double tdrift_low, double tdrift_high, TString side, TString ngroupwires, TString plane, TString suffix, bool fit_bkg = false){
 
   TString input_file_dir = getenv("OUTPUTROOT_PATH");
-  TFile *f = new TFile(input_file_dir + "/" + input_file_name);
-  TH2D *hist_2D = (TH2D*)gDirectory -> Get("t_drift_" + this_id + "_vs_dqdx_" + suffix);
-  //TH2D *hist_2D = (TH2D*)gDirectory -> Get("tdrift_vs_corr_dqdx");
+  TFile *f = new TFile(input_file_dir + "/lifetime/" + input_file_name);
+  TString histname = "h_dQdx_tDrift" + side + "_" + ngroupwires + "wires_" + plane;
+  TH2D *hist_2D = (TH2D*)gDirectory -> Get(histname + suffix);
 
   hist_2D -> RebinX(rebin_x);
   hist_2D -> RebinY(rebin_y);
@@ -71,7 +71,7 @@ void Fit_1D_plots(TString input_file_name, int rebin_x, int rebin_y, double tdri
     double width_x = this_hist_1D -> GetBinWidth(1);
     Double_t fitting_range[2];
     fitting_range[0] = 400.;
-    fitting_range[1] = 2500.;
+    fitting_range[1] = 3000.;
     Double_t sv[6], pllo[4], plhi[4], fp[4], fpe[4];
     sv[0] = 30.;
     sv[1] = 1000.; //max_x;
@@ -190,25 +190,30 @@ void Fit_1D_plots(TString input_file_name, int rebin_x, int rebin_y, double tdri
     latex_method.DrawLatex(0.18, 0.87, tdrift_latex);
 
     TString output_plot_dir = getenv("PLOT_PATH");
-    output_plot_dir = output_plot_dir + "/lifetime/1D/" + this_id + "/" + suffix + "/";
-    //output_plot_dir = output_plot_dir + "/lifetime/1D/Corr/";
-    c -> SaveAs(output_plot_dir + this_hist_name + ".pdf");
+    TString outfile_str = output_plot_dir + "/lifetime/1D/wire" + ngroupwires + "/" + plane + "_" + side + "/" + tdrift_str + suffix + ".pdf";
+    TString outfile_dir = gSystem->DirName(outfile_str);
+    if (gSystem->AccessPathName(outfile_dir)) {
+      std::cout << "Directory does not exist, creating: " << outfile_dir << std::endl;
+      gSystem->mkdir(outfile_dir, kTRUE);
+    }
+    c -> SaveAs(outfile_str);
 
     c -> Close();
-    
-    fitting_results[this_id + "_tdrift"].push_back(this_tdrift);
-    fitting_results[this_id + "_tdrift_err"].push_back(this_tdrift_err);
-    fitting_results[this_id + "_MPV"].push_back(this_MPV);
-    fitting_results[this_id + "_MPV_err"].push_back(this_MPV_err);
-    fitting_results[this_id + "_sigma_gaus"].push_back(this_Gaus_sigma);
-    fitting_results[this_id + "_sigma_gaus_err"].push_back(this_Gaus_sigma_err);
-    fitting_results[this_id + "_sigma_Landau"].push_back(this_Landau_sigma);
-    fitting_results[this_id + "_sigma_Landau_err"].push_back(this_Landau_sigma_err);
+    TString this_id = plane + side + ngroupwires;
+    fitting_results[this_id + "_tdrift" + suffix].push_back(this_tdrift);
+    fitting_results[this_id + "_tdrift_err" + suffix].push_back(this_tdrift_err);
+    fitting_results[this_id + "_MPV" + suffix].push_back(this_MPV);
+    fitting_results[this_id + "_MPV_err" + suffix].push_back(this_MPV_err);
+    fitting_results[this_id + "_sigma_gaus" + suffix].push_back(this_Gaus_sigma);
+    fitting_results[this_id + "_sigma_gaus_err" + suffix].push_back(this_Gaus_sigma_err);
+    fitting_results[this_id + "_sigma_Landau" + suffix].push_back(this_Landau_sigma);
+    fitting_results[this_id + "_sigma_Landau_err" + suffix].push_back(this_Landau_sigma_err);
   }
 }
 
-void Fit_lifetime(TString id, TString suffix, double x_range_down, double x_range_up, double y_range_down, double y_range_up){
+void Fit_lifetime(TString side, TString ngroupwires, TString plane, TString suffix, double x_range_down, double x_range_up, double y_range_down, double y_range_up){
 
+  TString id = plane + side + ngroupwires;
   double fit_x_low = 0.1;
   double fit_x_high = 1.24;
 
@@ -228,8 +233,8 @@ void Fit_lifetime(TString id, TString suffix, double x_range_down, double x_rang
   template_h -> GetYaxis() -> SetRangeUser(y_range_down, y_range_up);
   template_h -> Draw();
 
-  TGraphErrors *gr_1 = new TGraphErrors(fitting_results[id + "_tdrift"].size(), &fitting_results[id + "_tdrift"][0], &fitting_results[id + "_MPV"][0],
-				       &fitting_results[id + "_tdrift_err"][0], &fitting_results[id + "_MPV_err"][0]);
+  TGraphErrors *gr_1 = new TGraphErrors(fitting_results[id + "_tdrift" + suffix].size(), &fitting_results[id + "_tdrift" + suffix][0], &fitting_results[id + "_MPV" + suffix][0],
+				       &fitting_results[id + "_tdrift_err" + suffix][0], &fitting_results[id + "_MPV_err" + suffix][0]);
   gr_1 -> SetMarkerColor(kBlack);
   gr_1 -> SetMarkerStyle(32);
   gr_1 -> SetMarkerSize(0.7);
@@ -263,27 +268,56 @@ void Fit_lifetime(TString id, TString suffix, double x_range_down, double x_rang
 
   TString output_plot_dir = getenv("PLOT_PATH");
   output_plot_dir = output_plot_dir + "/lifetime/";
-  c -> SaveAs(output_plot_dir + "life_time_" + id + "_" + suffix + ".pdf");
-  //c -> SaveAs(output_plot_dir + "life_time_corr.pdf");
-
+  c -> SaveAs(output_plot_dir + "lifetime_wire" + ngroupwires + "_" + plane + "_" + side + suffix + ".pdf");
+  gr_1 -> SetName(ngroupwires + "_" + plane + "_" + side + suffix);
+  gr_1 -> Write();
   c -> Close();
 }
 
 void run_lifetime_fit(){
 
   setTDRStyle();
-  Fit_1D_plots("output_lifetime_test.root", 2, 20, 0.1, 1.24, "space", "angle_passing_cathode");
-  Fit_1D_plots("output_lifetime_test.root", 2, 20, 0.1, 1.24, "time", "angle_passing_cathode");
+
+  TString filename = "output_lifetime_2025A_Sprint25Dev_data.root";
+  TString outfilename = "fit_lifetime_2025A_SpringDev_data_bnbcosmics.root";
+  
+  TString sides[] = {"E", "W"};
+  TString planes[] = {"plane0", "plane1", "plane2"};
+  for(int i = 0; i < 3; i++){
+    TString this_plane = planes[i];
+    for(int j = 0; j < 2; j++){
+      TString this_side = sides[j];
+      Fit_1D_plots(filename, 2, 2, 0.1, 1.24, this_side, "10", this_plane, "");
+      Fit_1D_plots(filename, 2, 2, 0.1, 1.24, this_side, "10", this_plane, "_sce_corr");
+
+    }
+  }
+
+  //Fit_1D_plots("output_lifetime_test.root", 2, 20, 0.1, 1.24, "space", "angle_passing_cathode");
+  //Fit_1D_plots("output_lifetime_test.root", 2, 20, 0.1, 1.24, "time", "angle_passing_cathode");
   //Fit_1D_plots("output_lifetime_test.root", 2, 20, 0.1, 1.24, "space", "trk_len", true);
   //Fit_1D_plots("output_lifetime_test.root", 2, 20, 0.1, 1.24, "time", "trk_len", true);
   //Fit_1D_plots("output_lifetime_test.root", 2, 20, 0.1, 1.24, "space", "corr_trk_len", true);
   //Fit_1D_plots("output_lifetime_test.root", 2, 20, 0.1, 1.24, "time", "corr_trk_len", true);
 
-  Fit_lifetime("space", "angle_passing_cathode", 0., 1.3, 950., 1050.);
-  Fit_lifetime("time", "angle_passing_cathode", 0., 1.3, 950., 1050.);
+  //Fit_lifetime("space", "angle_passing_cathode", 0., 1.3, 950., 1050.);
+  //Fit_lifetime("time", "angle_passing_cathode", 0., 1.3, 950., 1050.);
   //Fit_lifetime("space", "trk_len", 0., 1.3, 950., 1080.);
   //Fit_lifetime("time", "trk_len", 0., 1.3, 950., 1080.);
   //Fit_lifetime("space", "corr_trk_len", 0., 1.3, 1010., 1100.);
   //Fit_lifetime("time", "corr_trk_len", 0., 1.3, 1010., 1100.);
+  TString output_file_dir = getenv("OUTPUTROOT_PATH");
+  TString out_root_name = output_file_dir + "/lifetime/" + outfilename;
+  TFile *outfile = new TFile(out_root_name, "RECREATE");
+  outfile -> cd();
+  for(int i = 0; i < 3; i++){
+    TString this_plane = planes[i];
+    for(int j = 0; j < 2; j++){
+      TString this_side = sides[j];
+      TString this_id = this_plane + this_side + "10";
+      Fit_lifetime(this_side, "10", this_plane, "", 0., 1.3, 1000., 1200.);
+      Fit_lifetime(this_side, "10", this_plane, "_sce_corr", 0., 1.3, 1000., 1200.);
+    }
+  }
 
 }
